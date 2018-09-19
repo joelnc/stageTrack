@@ -24,19 +24,22 @@ shinyServer(function(input, output, session) {
                 'change30', 'change30YN',
                 backgroundColor = styleEqual(c('Up', 'Down', 'Niether', 'Na'),
                                              c('#ef6548', '#addd8e',NA,NA)),
-                fontWeight = 'bold'
+                fontWeight = styleEqual(c('Up', 'Down', 'Niether', 'Na'),
+                                             c('bold', 'bold',NA,NA))
             ) %>%
             formatStyle(
                 'change15', 'change15YN',
                 backgroundColor = styleEqual(c('Up', 'Down', 'Niether', 'Na'),
                                              c('#ef6548', '#addd8e',NA,NA)),
-                fontWeight = 'bold'
+                fontWeight = styleEqual(c('Up', 'Down', 'Niether', 'Na'),
+                                             c('bold', 'bold',NA,NA))
             ) %>%
             formatStyle(
                 'change5', 'change5YN',
                 backgroundColor = styleEqual(c('Up', 'Down', 'Niether', 'Na'),
                                              c('#ef6548', '#addd8e',NA,NA)),
-                fontWeight = 'bold'
+                fontWeight = styleEqual(c('Up', 'Down', 'Niether', 'Na'),
+                                             c('bold', 'bold',NA,NA))
             ) %>%
             formatRound('change30', 2) %>%
             formatRound('change15', 2) %>%
