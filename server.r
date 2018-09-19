@@ -1,4 +1,5 @@
 library(shiny)
+library(plotly)
 
 #############################################################################
 
@@ -54,7 +55,7 @@ shinyServer(function(input, output, session) {
         ########################################################################
         ## Pars
         QParameterCd <- "00065" ## stage, feet
-        startTime <- Sys.Date()-1 ## yesterday
+        startTime <- Sys.Date()-input$daysBack ## yesterday
         ## Stage list from Florence excel set
         sitesData <<- data.frame(SiteNames=c("Irwin Creek @ WWTP","Little Sugar @ Archdale Drive",
                                            "McAlpine @ Sardis", "Briar Creek @ Colony Road",
@@ -102,26 +103,26 @@ shinyServer(function(input, output, session) {
                               startDate=startTime, tz="America/New_York")
         rQ <- recentQ[,c("site_no", "dateTime", "X_00065_00000")]
 
-        #############################################################################
-        ## insert code here to make graphs to hyperlink to sites
-        list1 <- split(rQ,rQ$site_no)
+        ## #############################################################################
+        ## ## insert code here to make graphs to hyperlink to sites
+        list1 <<- split(rQ,rQ$site_no)
 
-        quickPlot <- function(df,name0)  {
-            png(filename=paste0("www/",name0,".png"), width=5, height=3, units="in",
-                res=150)
-            par(mai=c(.5,.5,.4,.1), xaxs="i", yaxs="i")
-            plot(df$dateTime, df$X_00065_00000, type="l")#,
-                 ## ylim=c(0,2))
-            ## lines(x=c(min(df$dateTime), max(df$dateTime)),
-            ##       y=rep(sample(c(5,6,7),1),2),
-            ##       col="red",lty=2)
-            mtext(side=3,
-                  text=paste(name0, sitesData$SiteNames[which(sitesData$SiteCodes==name0)]))
-            ## plot(df$dateTime, df$X_00065_00000, type="l")
-            dev.off()
-        }
+        ## quickPlot <- function(df,name0)  {
+        ##     png(filename=paste0("www/",name0,".png"), width=5, height=3, units="in",
+        ##         res=150)
+        ##     par(mai=c(.5,.5,.4,.1), xaxs="i", yaxs="i")
+        ##     plot(df$dateTime, df$X_00065_00000, type="l")#,
+        ##          ## ylim=c(0,2))
+        ##     ## lines(x=c(min(df$dateTime), max(df$dateTime)),
+        ##     ##       y=rep(sample(c(5,6,7),1),2),
+        ##     ##       col="red",lty=2)
+        ##     mtext(side=3,
+        ##           text=paste(name0, sitesData$SiteNames[which(sitesData$SiteCodes==name0)]))
+        ##     ## plot(df$dateTime, df$X_00065_00000, type="l")
+        ##     dev.off()
+        ## }
 
-        mapply(df=list1, name0=names(list1), FUN=quickPlot)
+        ## mapply(df=list1, name0=names(list1), FUN=quickPlot)
 
         #############################################################################
         ## Keep last 12 hours
@@ -165,10 +166,6 @@ shinyServer(function(input, output, session) {
 
 
         r4$Site <- r4$SiteNames
-        ## r4$Site <- paste0("<a href='",
-        ##                   r4$SiteCode,".png'> ", r4$SiteName,"</a>")
-        #browser()
-        ## Reorder
 
         r4 <<- select(r4, Site, SiteNames, SiteCode,
                       change5, change15, change30,
@@ -176,6 +173,7 @@ shinyServer(function(input, output, session) {
                       everything())
 
     })
+
 
 
     observeEvent(input$x1_cell_clicked, {
@@ -187,9 +185,8 @@ shinyServer(function(input, output, session) {
         } else if (!is.null(info$value) & info$col==1){
             showModal(
                 modalDialog(
-                    ## HTML('<img src="http://www.google.nl/images/branding/googlelogo/2x/googlelogo_color_272x92dp.png">'),
-                    ##HTML('<img src="0214291555.png">'),
-                    htmlOutput("text"),
+                    ## htmlOutput("text"),
+                    plotlyOutput("graphs"),
                     easyClose = TRUE,
                     footer = NULL,
                     size="l"
@@ -243,16 +240,51 @@ shinyServer(function(input, output, session) {
 
         info <- input$x1_cell_clicked
 
-        ## browser()
+        ##browser()
+        if (is.null(info$value)) {
+            return()
+        } else if (!is.null(info$value) & info$col==1){
 
-        output$text <- renderUI({
-            HTML(paste0("<img src='",
-                        sitesData$SiteCode[which(sitesData$SiteName==info$value)],
-                        ".png'>"))
-            ## HTML(paste0("<img src='0214291555.png'>"))
-            ## HTML(paste0("<a href='0214291555.png'>Weather</a>"))
-            ## HTML(paste("This", "text", "yes"))
-        })
+            ds <- list1[[sitesData$SiteCode[which(sitesData$SiteName==info$value)]]]
+
+            output$graphs <- renderPlotly({
+                mm <- plot_ly(data=ds,
+                              x=~dateTime) %>%
+                    add_lines(y=~X_00065_00000,
+                              name=sitesData$SiteCode[which(sitesData$SiteName==info$value)]) %>%
+                    layout(
+                        title=sitesData$SiteCode[which(sitesData$SiteName==info$value)],
+                        xaxis = list(
+                            rangeselector = list(
+                                buttons = list(
+                                    list(
+                                        count = 3,
+                                        label = "3 h",
+                                        step = "hour",
+                                        stepmode = "backward"),
+                                    list(
+                                        count = 12,
+                                        label = "12 h",
+                                        step = "hour",
+                                        stepmode = "backward"),
+                                    list(
+                                        step = "all")
+                                    )),
+                            rangeslider = list(type="date")),
+                        yaxis=list(title="Stage (ft)")
+                    )
+                mm
+            })
+
+        }
+
+
+
+        ## output$text <- renderUI({
+        ##     HTML(paste0("<img src='",
+        ##                 sitesData$SiteCode[which(sitesData$SiteName==info$value)],
+        ##                 ".png'>"))
+        ## })
     })
 
 })
