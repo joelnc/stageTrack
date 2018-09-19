@@ -2,8 +2,6 @@ library(shiny)
 library(dataRetrieval)
 library(dplyr)
 library(DT)
-library(formattable)
-
 
 navbarPage(
     title = 'Stage Tracker',

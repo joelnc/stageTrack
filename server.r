@@ -14,25 +14,29 @@ shinyServer(function(input, output, session) {
                                  dom = 't',
                                  escape=TRUE,
                                  autoWidth = TRUE,
+                                 scrollX=TRUE,
                                  columnDefs = list(
                                      list(visible=FALSE, targets = c(0,2,6:8)),
-                                     list(width = '400px', targets = c(0,1,2,9)))
+                                     list(width = '250px', targets = c(1)))
                                  )
                   ) %>%
             formatStyle(
                 'change30', 'change30YN',
                 backgroundColor = styleEqual(c('Up', 'Down', 'Niether', 'Na'),
-                                             c('red', 'green','white','white'))
+                                             c('#ef6548', '#addd8e',NA,NA)),
+                fontWeight = 'bold'
             ) %>%
             formatStyle(
                 'change15', 'change15YN',
                 backgroundColor = styleEqual(c('Up', 'Down', 'Niether', 'Na'),
-                                             c('red', 'green','white','white'))
+                                             c('#ef6548', '#addd8e',NA,NA)),
+                fontWeight = 'bold'
             ) %>%
             formatStyle(
                 'change5', 'change5YN',
                 backgroundColor = styleEqual(c('Up', 'Down', 'Niether', 'Na'),
-                                             c('red', 'green','white','white'))
+                                             c('#ef6548', '#addd8e',NA,NA)),
+                fontWeight = 'bold'
             ) %>%
             formatRound('change30', 2) %>%
             formatRound('change15', 2) %>%
