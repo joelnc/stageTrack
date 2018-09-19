@@ -6,9 +6,9 @@ library(formattable)
 
 
 navbarPage(
-    title = 'Interaction with Table Cells',
+    title = 'Stage Tracker',
     id = 'x0',
-    tabPanel('Table',
+    tabPanel('Tabular',
              fluidRow(
                  column(1),
                  column(2,
