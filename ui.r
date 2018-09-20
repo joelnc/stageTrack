@@ -18,7 +18,7 @@ navbarPage(
                         actionButton("go", "Get Data")
                         ),
                  column(5,
-                        numericInput("daysBack", "Days of data to fetch prior to today:", 1, min=0,
+                        numericInput("daysBack", "Days of data to fetch prior to today:", 0, min=0,
                                      max=30, step=1)
                         )
              ),
