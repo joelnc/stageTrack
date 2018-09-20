@@ -15,8 +15,7 @@ navbarPage(
              fluidRow(
                  column(1),
                  column(2,
-                        actionButton("go", "Get Data"),
-                        align="bottom"
+                        actionButton("go", "Get Data")
                         ),
                  column(5,
                         numericInput("daysBack", "Days of data to fetch prior to today:", 1, min=0,
