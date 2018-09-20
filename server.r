@@ -14,10 +14,10 @@ shinyServer(function(input, output, session) {
             addProviderTiles(providers$OpenStreetMap.Mapnik, group="Streets") %>%
             addCircleMarkers(data=siteCoor, radius=3,
                              popup=paste(siteCoor$SiteName,
-                                         br()#,
-                                         #paste0("<a href='",
-                                         ###       siteCoor$usgsLink[which(siteCoor$SiteName==prev_row()$SiteNames)],
-                                          #      "'>USGS</a>", " (Right click to open in new window)")
+                                         br(),
+                                         paste0("<a href='",
+                                                siteCoor$usgsLink[which(siteCoor$SiteName==siteCoor$SiteNames)],
+                                               "'>USGS</a>", " (Right click to open in new window)")
                                          )) %>%
                              ## popup=siteCoor$SiteName) %>%
             ## addAwesomeMarkers(data=siteCoor, icon=icons) %>%
@@ -91,7 +91,7 @@ shinyServer(function(input, output, session) {
                                  dom = 't',
                                  escape=TRUE,
                                  autoWidth = TRUE,
-                                 scrollX=FALSE,
+                                 scrollX=TRUE,
                                  columnDefs = list(
                                      list(visible=FALSE, targets = c(0,3,7:9)),
                                      list(width = '225px', targets = c(2)))
@@ -190,7 +190,7 @@ shinyServer(function(input, output, session) {
 
         r5$Site <- r5$SiteNames
 
-        r5$Graph <- paste0("'<img src='icon", r5$SiteCode,  ".png' height='26'></img>'")
+        r5$Graph <- paste0("'<img src='icon", r5$SiteCode,  ".png' height='20'></img>'")
 
         r5 <<- select(r5, Site, Graph, SiteNames, SiteCode,
                       change5, change15, change30,
