@@ -13,7 +13,13 @@ shinyServer(function(input, output, session) {
         leaflet() %>%
             addProviderTiles(providers$OpenStreetMap.Mapnik, group="Streets") %>%
             addCircleMarkers(data=siteCoor, radius=3,
-                             popup=siteCoor$SiteName) %>%
+                             popup=paste(siteCoor$SiteName,
+                                         br()#,
+                                         #paste0("<a href='",
+                                         ###       siteCoor$usgsLink[which(siteCoor$SiteName==prev_row()$SiteNames)],
+                                          #      "'>USGS</a>", " (Right click to open in new window)")
+                                         )) %>%
+                             ## popup=siteCoor$SiteName) %>%
             ## addAwesomeMarkers(data=siteCoor, icon=icons) %>%
             fitBounds(lng1=min(siteCoor$longitude),
                       lng2=max(siteCoor$longitude),
@@ -35,7 +41,12 @@ shinyServer(function(input, output, session) {
         proxy <- leafletProxy('mapy')
 
         ## proxy %>%
-        ##     addMarkers(popup=as.character(row_selected$SiteNames),
+        ##     addMarkers(popup=paste(prev_row()$SiteNames,
+        ##                        br(),
+        ##                        paste0("<a href='",
+        ##                               siteCoor$usgsLink[which(siteCoor$SiteName==prev_row()$SiteNames)],
+        ##                               "'>USGS</a>"),
+        ##                        "(Right click to open in new window)"),##as.character(row_selected$SiteNames),
         ##                       ## layerId = as.character(row_selected$id),
         ##                       layerId = "Selected Site",
         ##                       lng=row_selected$longitude,
@@ -48,7 +59,8 @@ shinyServer(function(input, output, session) {
                 addMarkers(
                     popup=paste(prev_row()$SiteNames,
                                br(),
-                               paste0("<a href='",siteCoor$usgsLink[which(siteCoor$SiteName==prev_row()$SiteNames)],
+                               paste0("<a href='",
+                                      siteCoor$usgsLink[which(siteCoor$SiteName==prev_row()$SiteNames)],
                                       "'>USGS</a>"),
                                "(Right click to open in new window)"),
                     ##popup=as.character(prev_row()$SiteNames),
@@ -60,10 +72,9 @@ shinyServer(function(input, output, session) {
     })
 
     ## observeEvent(input$mapy_marker_click, {
-    ##     clickId <- input$mapy_marker_click$SiteCode
+    ##     clickId <- input$mapy_marker_click$lat
     ##     dataTableProxy("x1") %>%
-    ##         selectRows(which(refrData()$SiteCode == clickId)) %>%
-    ##         selectPage(which(input$x1_rows_all == clickId) %/% input$x1_state$length + 1)
+    ##         selectRows(which(refrData()$latitude == clickId))
     ## })
 
 
@@ -80,7 +91,7 @@ shinyServer(function(input, output, session) {
                                  dom = 't',
                                  escape=TRUE,
                                  autoWidth = TRUE,
-                                 scrollX=TRUE,
+                                 scrollX=FALSE,
                                  columnDefs = list(
                                      list(visible=FALSE, targets = c(0,3,7:9)),
                                      list(width = '225px', targets = c(2)))
