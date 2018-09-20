@@ -5,30 +5,31 @@ library(plotly)
 
 shinyServer(function(input, output, session) {
 
-        ## Maps
-        output$mapy <- renderLeaflet({
+    ## Maps
+    output$mapy <- renderLeaflet({
 
-            ## icons <- awesomeIcons(
-            ##     icon = 'glyphicon-arrow-up',
-            ##     iconColor = 'red',
-            ##     markerColor = '#FF0000',
-            ##     library = 'glyphicon'
-            ## )
+        ## icons <- awesomeIcons(
+        ##     icon = 'glyphicon-arrow-up',
+        ##     iconColor = 'red',
+        ##     markerColor = '#FF0000',
+        ##     library = 'glyphicon'
+        ## )
 
-            leaflet() %>%
-                addProviderTiles(providers$OpenStreetMap.Mapnik, group="Streets") %>%
-                addProviderTiles(providers$Esri.WorldImagery, group="Aerials") %>%
-                addCircleMarkers(data=siteCoor, radius=3, group="Selected Monitoring Location") %>%
-                ## addAwesomeMarkers(data=siteCoor, icon=icons) %>%
-                fitBounds(lng1=min(siteCoor$longitude),
-                          lng2=max(siteCoor$longitude),
-                          lat1=min(siteCoor$latitude),
-                          lat2=max(siteCoor$latitude)) %>%
-                addLayersControl(
-                    baseGroups = c("Streets", "Aerials"),
-                    overlayGroups = c("Watershed", "Stream")
-                )
-        })
+        leaflet() %>%
+            addProviderTiles(providers$OpenStreetMap.Mapnik, group="Streets") %>%
+            addProviderTiles(providers$Esri.WorldImagery, group="Aerials") %>%
+            addCircleMarkers(data=siteCoor, radius=3,
+                             group="Selected Monitoring Location") %>%
+            ## addAwesomeMarkers(data=siteCoor, icon=icons) %>%
+            fitBounds(lng1=min(siteCoor$longitude),
+                      lng2=max(siteCoor$longitude),
+                      lat1=min(siteCoor$latitude),
+                      lat2=max(siteCoor$latitude)) %>%
+            addLayersControl(
+                baseGroups = c("Streets", "Aerials"),
+                overlayGroups = c("Watershed", "Stream")
+            )
+    })
 
 
     ## add CSS style 'cursor: pointer' to the 0-th column (i.e. row names)
