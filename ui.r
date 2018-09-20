@@ -22,10 +22,7 @@ navbarPage(
                                      max=30, step=1)
                         )
              ),
-             DT::dataTableOutput('x1')),
-    tabPanel("Mapular"#,
-             ## leafletOutput("mapy")
-             )
+             DT::dataTableOutput('x1'))
 )
 
 

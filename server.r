@@ -12,7 +12,8 @@ shinyServer(function(input, output, session) {
 
         leaflet() %>%
             addProviderTiles(providers$OpenStreetMap.Mapnik, group="Streets") %>%
-            addCircleMarkers(data=siteCoor, radius=3) %>%
+            addCircleMarkers(data=siteCoor, radius=3,
+                             popup=siteCoor$SiteName) %>%
             ## addAwesomeMarkers(data=siteCoor, icon=icons) %>%
             fitBounds(lng1=min(siteCoor$longitude),
                       lng2=max(siteCoor$longitude),
@@ -27,6 +28,10 @@ shinyServer(function(input, output, session) {
 
     observeEvent(input$x1_rows_selected, {
         row_selected = refrData()[input$x1_rows_selected,]
+
+        ## set new value to reactiveVal
+        prev_row(row_selected)
+
         proxy <- leafletProxy('mapy')
 
         ## proxy %>%
@@ -41,27 +46,25 @@ shinyServer(function(input, output, session) {
         {
             proxy %>%
                 addMarkers(
-                    popup=HTML(paste(prev_row()$SiteNames),
+                    popup=paste(prev_row()$SiteNames,
                                br(),
                                paste0("<a href='",siteCoor$usgsLink[which(siteCoor$SiteName==prev_row()$SiteNames)],
-                                      "'>USGS</a>")
-                                     ),
+                                      "'>USGS</a>"),
+                               "(Right click to open in new window)"),
                     ##popup=as.character(prev_row()$SiteNames),
                     ## Not this....layerId = as.character(prev_row()$id),
                     layerId = "Selected Site",
                     lng=prev_row()$longitude,
                     lat=prev_row()$latitude)
         }
-        ## set new value to reactiveVal
-        prev_row(row_selected)
     })
 
-    observeEvent(input$mapy_marker_click, {
-        clickId <- input$mapy_marker_click$SiteCode
-        dataTableProxy("x1") %>%
-            selectRows(which(refrData()$SiteCode == clickId)) %>%
-            selectPage(which(input$x1_rows_all == clickId) %/% input$x1_state$length + 1)
-    })
+    ## observeEvent(input$mapy_marker_click, {
+    ##     clickId <- input$mapy_marker_click$SiteCode
+    ##     dataTableProxy("x1") %>%
+    ##         selectRows(which(refrData()$SiteCode == clickId)) %>%
+    ##         selectPage(which(input$x1_rows_all == clickId) %/% input$x1_state$length + 1)
+    ## })
 
 
 
