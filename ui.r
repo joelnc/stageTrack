@@ -2,6 +2,9 @@ library(shiny)
 library(dataRetrieval)
 library(dplyr)
 library(DT)
+library(leaflet)
+
+siteCoor <<- readRDS("siteCoords.rds")
 
 navbarPage(
     title = 'Stage Tracker',
@@ -17,7 +20,10 @@ navbarPage(
                                      max=30, step=1)
                         )
              ),
-             DT::dataTableOutput('x1'))
+             DT::dataTableOutput('x1')),
+    tabPanel("Mapular",
+             leafletOutput("mapy")
+             )
 )
 
 
