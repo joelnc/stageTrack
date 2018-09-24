@@ -253,8 +253,6 @@ shinyServer(function(input, output, session) {
                 filter(dates %in% as.Date(ds$dateTime)) %>%
                 select(dtSeq, names(histDaily)[which(grepl(plotSite, names(histDaily)))])
 
-            ## browser()
-
             output$graphs <- renderPlotly({
                 mm <- plot_ly(data=ds, x=~dateTime) %>%
                     add_lines(y=~X_00065_00000,
@@ -288,10 +286,8 @@ shinyServer(function(input, output, session) {
                 toc()
                 mm
             })
-
         }
     })
-
 })
 
 
