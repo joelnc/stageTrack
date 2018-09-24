@@ -56,7 +56,7 @@ shinyServer(function(input, output, session) {
         if(!is.null(prev_row()))
         {
             proxy %>%
-                addMarkers(
+                addCircleMarkers(radius=5, color="red",
                     popup=paste(prev_row()$SiteNames,
                                br(),
                                paste0("<a href='",
@@ -132,10 +132,15 @@ shinyServer(function(input, output, session) {
         QParameterCd <- "00065" ## stage, feet
         startTime <- Sys.Date()-input$daysBack ## yesterday
 
+        tic("pull USGS data")
+
         ## Pull most recent data
         recentQ <- readNWISuv(siteNumbers=siteCoor$SiteCode,
                               parameterCd=QParameterCd,
                               startDate=startTime, tz="America/New_York")
+        toc()
+
+        tic("process usgs data")
         rQ <- recentQ[,c("site_no", "dateTime", "X_00065_00000")]
 
         ## #############################################################################
@@ -192,6 +197,8 @@ shinyServer(function(input, output, session) {
 
         r5$Graph <- paste0("'<img src='icon", r5$SiteCode,  ".png' height='20'></img>'")
 
+        toc()
+
         r5 <<- select(r5, Site, Graph, SiteNames, SiteCode,
                       change5, change15, change30,
                       change5YN, change15YN, change30YN,
@@ -201,6 +208,10 @@ shinyServer(function(input, output, session) {
 
 
 
+
+    ######################################################################
+    ######################################################################
+    ## Graphing functions, possible that two observeEvents not needed
     observeEvent(input$x1_cell_clicked, {
 
         info <- input$x1_cell_clicked
@@ -228,20 +239,32 @@ shinyServer(function(input, output, session) {
         if (is.null(info$value)) {
             return()
         } else if (!is.null(info$value) & info$col==1){
+            tic("click graph")
 
             ## ds <- list1[[siteCoor$SiteCode[which(siteCoor$SiteName==info$value)]]]
             plotSite <- substr(gsub(".*on(.*)","\\1", info$value),
                                1, nchar(gsub(".*on(.*)","\\1", info$value))-25)
 
+
             ## ds <- list1[[siteCoor$SiteCode[which(siteCoor$SiteCode==plotSite)]]]
             ds <- list1[[plotSite]]
 
+           ## browser()
+            ## Subset historical daily flows
+            ## index <- which(grepl(plotSite, names(histDaily)))
+            hData <- histDaily %>%
+                filter(dates %in% as.Date(ds$dateTime)) %>%
+                select(dtSeq, names(histDaily)[which(grepl(plotSite, names(histDaily)))])
+
+
             output$graphs <- renderPlotly({
-                mm <- plot_ly(data=ds,
-                              x=~dateTime) %>%
+                mm <- plot_ly(data=ds, x=~dateTime) %>%
                     add_lines(y=~X_00065_00000,
                               name=plotSite) %>%
-                              ## name=siteCoor$SiteCode[which(siteCoor$SiteName==plotSite)]) %>%
+                    ## name=siteCoor$SiteCode[which(siteCoor$SiteName==plotSite)]) %>%
+                    ## add_lines(x=c(min(ds$dateTime), max(ds$dateTime)), y=rep(histDaily[3,6],2)) %>%
+                    add_lines(x=hData$dtSeq, y=hData[,2], name="Averages") %>%
+
                     layout(
                         title=paste(plotSite, siteCoor$SiteName[which(siteCoor$SiteCode==plotSite)]),
                         xaxis = list(
@@ -263,6 +286,7 @@ shinyServer(function(input, output, session) {
                             rangeslider = list(type="date")),
                         yaxis=list(title="Stage (ft)")
                     )
+                toc()
                 mm
             })
 
