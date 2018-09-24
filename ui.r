@@ -3,8 +3,10 @@ library(dataRetrieval)
 library(dplyr)
 library(DT)
 library(leaflet)
+library(tictoc)
 
 siteCoor <<- readRDS("siteCoords.rds")
+histDaily <<- readRDS("histDailyFlow_Formatted.rds")
 
 navbarPage(
     title = 'Stage Tracker',
