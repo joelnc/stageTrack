@@ -207,8 +207,6 @@ shinyServer(function(input, output, session) {
     })
 
 
-
-
     ######################################################################
     ######################################################################
     ## Graphing functions, possible that two observeEvents not needed
@@ -249,21 +247,22 @@ shinyServer(function(input, output, session) {
             ## ds <- list1[[siteCoor$SiteCode[which(siteCoor$SiteCode==plotSite)]]]
             ds <- list1[[plotSite]]
 
-           ## browser()
             ## Subset historical daily flows
             ## index <- which(grepl(plotSite, names(histDaily)))
             hData <- histDaily %>%
                 filter(dates %in% as.Date(ds$dateTime)) %>%
                 select(dtSeq, names(histDaily)[which(grepl(plotSite, names(histDaily)))])
 
+            ## browser()
 
             output$graphs <- renderPlotly({
                 mm <- plot_ly(data=ds, x=~dateTime) %>%
                     add_lines(y=~X_00065_00000,
                               name=plotSite) %>%
                     ## name=siteCoor$SiteCode[which(siteCoor$SiteName==plotSite)]) %>%
-                    ## add_lines(x=c(min(ds$dateTime), max(ds$dateTime)), y=rep(histDaily[3,6],2)) %>%
-                    add_lines(x=hData$dtSeq, y=hData[,2], name="Averages") %>%
+                    add_lines(x=c(min(ds$dateTime), max(ds$dateTime)), y=rep(hData[2,2]*4,2),
+                              name="Fake Flood Stage") %>%
+                    add_lines(x=hData$dtSeq, y=hData[,2], name="LT Average") %>%
 
                     layout(
                         title=paste(plotSite, siteCoor$SiteName[which(siteCoor$SiteCode==plotSite)]),
