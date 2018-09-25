@@ -129,8 +129,10 @@ shinyServer(function(input, output, session) {
 
         ########################################################################
         ## Pars
+        print(Sys.timezone())
         QParameterCd <- "00065" ## stage, feet
-        startTime <- Sys.Date()-input$daysBack ## yesterday
+        ## startTime <- Sys.Date()-input$daysBack ## yesterday
+        startTime <- as.Date(format(Sys.time(), tz="America/Panama"))-input$daysBack
 
         tic("pull USGS data")
 
