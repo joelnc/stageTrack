@@ -9,14 +9,14 @@ shinyServer(function(input, output, session) {
     ######################################################################
     ## Maps
     output$mapy <- renderLeaflet({
-
+##browser()
         leaflet() %>%
             addProviderTiles(providers$OpenStreetMap.Mapnik, group="Streets") %>%
             addCircleMarkers(data=siteCoor, radius=3,
                              popup=paste(siteCoor$SiteName,
                                          br(),
                                          paste0("<a href='",
-                                                siteCoor$usgsLink[which(siteCoor$SiteName==siteCoor$SiteNames)],
+                                                siteCoor$usgsLink,
                                                "'>USGS</a>", " (Right click to open in new window)")
                                          )) %>%
                              ## popup=siteCoor$SiteName) %>%
@@ -175,7 +175,7 @@ shinyServer(function(input, output, session) {
         r5 <- merge(r4, attributes(recentQ)$siteInfo[,c("site_no","dec_lat_va","dec_lon_va")],
                     by.x="SiteCode", by.y="site_no", all=TRUE)
 
-
+##browser()
         ## Change columns
         r5$change5 <- r5[,3]-r5[,4]
         r5$change5YN <- rep("Na",53)
