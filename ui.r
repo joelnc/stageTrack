@@ -17,11 +17,15 @@ navbarPage(
              fluidRow(
                  column(1),
                  column(2,
-                        actionButton("go", "Get Data")
+                        actionButton("resetButton", "Reset with n days")
                         ),
                  column(5,
-                        numericInput("daysBack", "Days of data to fetch prior to today:", 0, min=0,
-                                     max=30, step=1)
+                        numericInput("daysBack",
+                                     "Days of data to fetch prior to today:",
+                                     0, min=0, max=30, step=1)
+                        ),
+                 column(2,
+                        actionButton("refButton", "Refresh")
                         )
              ),
              DT::dataTableOutput('x1'))
