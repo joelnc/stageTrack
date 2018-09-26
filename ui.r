@@ -15,13 +15,11 @@ navbarPage(
              fluidRow(
                  column(3,
                         wellPanel(
-                            numericInput("daysBack", "Days of data to fetch prior to today:", 0, min=0,
-                                     max=30, step=1),
-                            actionButton("go", "Initialize Table"),
-                            br(),
-                            br(),
-                            actionButton("updData", "Refresh"),
-                            checkboxInput("autoRef", "Auto. Refresh?")
+                            h4("Initialize", font="bold"),
+                            sliderInput("dSlide","Days Prior", min=0, max=14, value=1),
+                            hr(),
+                            h4("Get Most Recent Data"),
+                            actionButton("updData", "Refresh")
                         )
                         ),
                  column(9,
