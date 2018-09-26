@@ -12,18 +12,22 @@ navbarPage(
     title = 'Stage Tracker',
     id = 'x0',
     tabPanel('Tabular',
-             leafletOutput("mapy"),
-             hr(),
              fluidRow(
-                 column(1),
-                 column(2,
-                        actionButton("go", "Get Data")
+                 column(3,
+                        wellPanel(
+                            numericInput("daysBack", "Days of data to fetch prior to today:", 0, min=0,
+                                     max=30, step=1),
+                            actionButton("go", "Initialize Table"),
+                            br(),
+                            actionButton("refrData", "Refresh"),
+                            checkboxInput("autoRef", "Auto. Refresh?")
+                        )
                         ),
-                 column(5,
-                        numericInput("daysBack", "Days of data to fetch prior to today:", 0, min=0,
-                                     max=30, step=1)
+                 column(9,
+                        leafletOutput("mapy")
                         )
              ),
+             hr(),
              DT::dataTableOutput('x1'))
 )
 
