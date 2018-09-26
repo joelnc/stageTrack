@@ -9,7 +9,7 @@ shinyServer(function(input, output, session) {
     ######################################################################
     ## Maps
     output$mapy <- renderLeaflet({
-##browser()
+
         leaflet() %>%
             addProviderTiles(providers$OpenStreetMap.Mapnik, group="Streets") %>%
             addCircleMarkers(data=siteCoor, radius=3,
@@ -19,8 +19,6 @@ shinyServer(function(input, output, session) {
                                                 siteCoor$usgsLink,
                                                "'>USGS</a>", " (Right click to open in new window)")
                                          )) %>%
-                             ## popup=siteCoor$SiteName) %>%
-            ## addAwesomeMarkers(data=siteCoor, icon=icons) %>%
             fitBounds(lng1=min(siteCoor$longitude),
                       lng2=max(siteCoor$longitude),
                       lat1=min(siteCoor$latitude),
@@ -120,7 +118,8 @@ shinyServer(function(input, output, session) {
             ) %>%
             formatRound('change30', 2) %>%
             formatRound('change15', 2) %>%
-            formatRound('change5', 2)
+            formatRound('change5', 2) %>%
+            formatRound('def',1)
 
     })
 
@@ -155,6 +154,13 @@ shinyServer(function(input, output, session) {
         rQ <- filter(rQ,
                      dateTime>=Sys.time()-(60*60*2))
 
+        ## Pull out newest data dateTime for each site
+        newestDt <- rQ %>%
+            group_by(site_no) %>%
+            filter(dateTime == max(dateTime)) %>%
+            select(site_no, dateTime) %>%
+            mutate(def=difftime(Sys.time(), dateTime, units="min")) %>%
+            as.data.frame()
 
         ## Reshape
         r2 <- reshape(rQ, idvar="site_no", v.names="X_00065_00000",
@@ -175,25 +181,59 @@ shinyServer(function(input, output, session) {
         r5 <- merge(r4, attributes(recentQ)$siteInfo[,c("site_no","dec_lat_va","dec_lon_va")],
                     by.x="SiteCode", by.y="site_no", all=TRUE)
 
-##browser()
+        ## Also merge the "how old is newest data" column
+        r5 <- merge(r5, newestDt, by.x="SiteCode", by.y="site_no", all=TRUE)
+
+
+        ## This produces an array with column indexes correpsondig to first numeric
+        ## data per site
+        b <- rep(NA,53)
+        for (i in 1:53) {
+            b[i] <- which(names(r5)==format(r5$dateTime[i], format="%m-%d %H:%M"))
+        }
+
+        ##browser()
+
         ## Change columns
-        r5$change5 <- r5[,3]-r5[,4]
-        r5$change5YN <- rep("Na",53)
-        r5$change5YN[which(r5$change5<0)] <- "Down"
-        r5$change5YN[which(r5$change5==0)] <- "Same"
-        r5$change5YN[which(r5$change5>0)] <- "Up"
+        for (i in 1:53) {
+                    r5$change5[i] <- r5[i,b[i]]-r5[i,b[i]+1]
+                    r5$change5YN <- rep("Na",53)
+                    r5$change5YN[which(r5$change5<0)] <- "Down"
+                    r5$change5YN[which(r5$change5==0)] <- "Same"
+                    r5$change5YN[which(r5$change5>0)] <- "Up"
 
-        r5$change15 <- r5[,3]-r5[,6]
-        r5$change15YN <- rep("Na",53)
-        r5$change15YN[which(r5$change15<0)] <- "Down"
-        r5$change15YN[which(r5$change15==0)] <- "Same"
-        r5$change15YN[which(r5$change15>0)] <- "Up"
+                    r5$change15[i] <- r5[i,b[i]]-r5[i,b[i]+3]
+                    r5$change15YN <- rep("Na",53)
+                    r5$change15YN[which(r5$change15<0)] <- "Down"
+                    r5$change15YN[which(r5$change15==0)] <- "Same"
+                    r5$change15YN[which(r5$change15>0)] <- "Up"
 
-        r5$change30 <- r5[,3]-r5[,9]
-        r5$change30YN <- rep("Na",53)
-        r5$change30YN[which(r5$change30<0)] <- "Down"
-        r5$change30YN[which(r5$change30==0)] <- "Same"
-        r5$change30YN[which(r5$change30>0)] <- "Up"
+                    r5$change30[i] <- r5[i,b[1]]-r5[i,b[i]+6]
+                    r5$change30YN <- rep("Na",53)
+                    r5$change30YN[which(r5$change30<0)] <- "Down"
+                    r5$change30YN[which(r5$change30==0)] <- "Same"
+                    r5$change30YN[which(r5$change30>0)] <- "Up"
+        }
+
+
+        ## ## Change columns
+        ## r5$change5 <- r5[,3]-r5[,4]
+        ## r5$change5YN <- rep("Na",53)
+        ## r5$change5YN[which(r5$change5<0)] <- "Down"
+        ## r5$change5YN[which(r5$change5==0)] <- "Same"
+        ## r5$change5YN[which(r5$change5>0)] <- "Up"
+
+        ## r5$change15 <- r5[,3]-r5[,6]
+        ## r5$change15YN <- rep("Na",53)
+        ## r5$change15YN[which(r5$change15<0)] <- "Down"
+        ## r5$change15YN[which(r5$change15==0)] <- "Same"
+        ## r5$change15YN[which(r5$change15>0)] <- "Up"
+
+        ## r5$change30 <- r5[,3]-r5[,9]
+        ## r5$change30YN <- rep("Na",53)
+        ## r5$change30YN[which(r5$change30<0)] <- "Down"
+        ## r5$change30YN[which(r5$change30==0)] <- "Same"
+        ## r5$change30YN[which(r5$change30>0)] <- "Up"
 
         r5$Site <- r5$SiteNames
 
@@ -203,7 +243,7 @@ shinyServer(function(input, output, session) {
 
         r5 <<- select(r5, Site, Graph, SiteNames, SiteCode,
                       change5, change15, change30,
-                      change5YN, change15YN, change30YN,
+                      change5YN, change15YN, change30YN, def,
                       everything(), latitude=dec_lat_va,
                       longitude=dec_lon_va)
     })
