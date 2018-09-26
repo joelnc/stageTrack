@@ -19,7 +19,8 @@ navbarPage(
                                      max=30, step=1),
                             actionButton("go", "Initialize Table"),
                             br(),
-                            actionButton("refrData", "Refresh"),
+                            br(),
+                            actionButton("updData", "Refresh"),
                             checkboxInput("autoRef", "Auto. Refresh?")
                         )
                         ),
