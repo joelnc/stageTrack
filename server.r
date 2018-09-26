@@ -5,6 +5,158 @@ library(plotly)
 
 shinyServer(function(input, output, session) {
 
+
+    ######################################################################
+    ######################################################################
+    ## Data
+
+    ## Pull data for full period of interest
+    baseData <- reactive({
+
+        ## Pars
+        QParameterCd <- "00065" ## stage, feet
+        ## startTime <- Sys.Date()-input$daysBack ## yesterday
+        startTime <- as.Date(format(Sys.time(), tz="America/Panama"))-input$dSlide
+
+        ## Pull most recent data
+        recentQ <- readNWISuv(siteNumbers=siteCoor$SiteCode,
+                              parameterCd=QParameterCd,
+                              startDate=startTime, tz="America/New_York")
+        rQ <- recentQ[,c("site_no", "dateTime", "X_00065_00000")]
+
+        ## insert code here to make graphs to hyperlink to sites
+        ##list1 <- split(rQ,rQ$site_no)
+
+        return(list(rQ=rQ,
+                    latLon=attributes(recentQ)$siteInfo[,c("site_no","dec_lat_va","dec_lon_va")]
+                    )
+               )
+
+    })
+
+    ## If button clicked, add on most recent data.  Otherwise pass through
+    useData <- reactive({
+
+        if (input$updData==0) {
+            rQ <- as.data.frame(baseData()[["rQ"]])
+            list1 <- split(rQ, rQ$site_no)
+            outData <- list(rQ=rQ, list1=list1,
+                            latLon=as.data.frame(baseData()[["latLon"]])
+                            )
+
+        } else {
+
+            ## original data
+            rQ_Orig <- as.data.frame(baseData()[["rQ"]])
+
+            ## Pull today
+            ## Pars
+            QParameterCd <- "00065" ## stage, feet
+            ## startTime <- Sys.Date()-input$daysBack ## yesterday
+            startTime <- as.Date(format(Sys.time(), tz="America/Panama"))
+
+            ## Pull most recent data
+            recentQ <- readNWISuv(siteNumbers=siteCoor$SiteCode,
+                                  parameterCd=QParameterCd,
+                                  startDate=startTime, tz="America/New_York")
+            rQ_New <- recentQ[,c("site_no", "dateTime", "X_00065_00000")]
+
+            ## Rbind old and new, drop dupes
+            rQ_Updated <- rbind(rQ_Orig, rQ_New)
+            rQ_Updated$key <- paste(rQ_Updated$site_no, rQ_Updated$dateTime)
+            rQ_Updated <- rQ_Updated[-which(duplicated(rQ_Updated$key)),c(1:3)]
+
+            list1 <- split(rQ_Updated, rQ_Updated$site_no)
+            outData <- list(rQ=rQ_Updated, list1=list1,
+                            latLon=as.data.frame(baseData()[["latLon"]])
+                            )
+        }
+        return(outData)
+    })
+
+    ## Take
+    fData <- reactive({
+
+        ##browser()
+        rQ <- as.data.frame(useData()[["rQ"]])
+        latLon <- as.data.frame(useData()[["latLon"]])
+
+        #############################################################################
+        ## Keep last 12 hours
+        rQ <- filter(rQ,
+                     dateTime>=Sys.time()-(60*60*2))
+
+        ## Pull out newest data dateTime for each site
+        newestDt <- rQ %>%
+            group_by(site_no) %>%
+            filter(dateTime == max(dateTime)) %>%
+            select(site_no, dateTime) %>%
+            mutate(def=difftime(Sys.time(), dateTime, units="min")) %>%
+            as.data.frame()
+
+        ## Reshape
+        r2 <- reshape(rQ, idvar="site_no", v.names="X_00065_00000",
+                      timevar="dateTime", direction="wide")
+
+        ## Rename
+        names(r2) <- substring(names(r2), 20, 30)
+        names(r2)[1] <- "SiteCode"
+        r3 <- r2[sort(names(r2), decreasing=TRUE)]
+        r3 <- r3[order(r3$SiteCode),]
+
+        SiteNames <- siteCoor$SiteName[order(siteCoor$SiteCode)]
+
+        ## Add on site names
+        r4 <- cbind(SiteNames, r3)
+
+        r5 <- merge(r4, latLon,
+                    by.x="SiteCode", by.y="site_no", all=TRUE)
+
+        ## Also merge the "how old is newest data" column
+        r5 <- merge(r5, newestDt, by.x="SiteCode", by.y="site_no", all=TRUE)
+
+
+        ## This produces an array with column indexes correpsondig to first numeric
+        ## data per site
+        b <- rep(NA,53)
+        for (i in 1:53) {
+            b[i] <- which(names(r5)==format(r5$dateTime[i], format="%m-%d %H:%M"))
+        }
+
+        ## Change columns
+        for (i in 1:53) {
+                    r5$change5[i] <- r5[i,b[i]]-r5[i,b[i]+1]
+                    r5$change5YN <- rep("Na",53)
+                    r5$change5YN[which(r5$change5<0)] <- "Down"
+                    r5$change5YN[which(r5$change5==0)] <- "Same"
+                    r5$change5YN[which(r5$change5>0)] <- "Up"
+
+                    r5$change15[i] <- r5[i,b[i]]-r5[i,b[i]+3]
+                    r5$change15YN <- rep("Na",53)
+                    r5$change15YN[which(r5$change15<0)] <- "Down"
+                    r5$change15YN[which(r5$change15==0)] <- "Same"
+                    r5$change15YN[which(r5$change15>0)] <- "Up"
+
+                    r5$change30[i] <- r5[i,b[1]]-r5[i,b[i]+6]
+                    r5$change30YN <- rep("Na",53)
+                    r5$change30YN[which(r5$change30<0)] <- "Down"
+                    r5$change30YN[which(r5$change30==0)] <- "Same"
+                    r5$change30YN[which(r5$change30>0)] <- "Up"
+        }
+
+        r5$Site <- r5$SiteNames
+
+        r5$Graph <- paste0("'<img src='icon", r5$SiteCode,  ".png' height='20'></img>'")
+
+        r5 <- select(r5, Site, Graph, SiteNames, SiteCode,
+                     "5-Min Change"=change5, "15-Min Change"=change15,
+                     "30-Min Change"=change30, change5YN, change15YN, change30YN,
+                     "Minutes Since"=def, everything(), latitude=dec_lat_va,
+                      longitude=dec_lon_va)
+
+        return(list(r5=r5))
+    })
+
     ######################################################################
     ######################################################################
     ## Maps
@@ -31,7 +183,9 @@ shinyServer(function(input, output, session) {
 
 
     observeEvent(input$x1_rows_selected, {
-        row_selected = refrData()[input$x1_rows_selected,]
+        ##row_selected = refrData()[input$x1_rows_selected,]
+        ## row_selected = as.data.frame(dReact1()[["r5"]])[input$x1_rows_selected,]
+        row_selected = as.data.frame(fData()[["r5"]])[input$x1_rows_selected,]
 
         ## set new value to reactiveVal
         prev_row(row_selected)
@@ -67,7 +221,7 @@ shinyServer(function(input, output, session) {
 
 
     output$x1 = DT::renderDataTable({
-        datatable(data=refrData(),
+        datatable(data=as.data.frame(fData()[["r5"]]),##data=refrData(),
                   rownames=FALSE,
                   escape=FALSE,
                   selection = "single",
@@ -78,235 +232,424 @@ shinyServer(function(input, output, session) {
                                  autoWidth = TRUE,
                                  scrollX=TRUE,
                                  columnDefs = list(
-                                     list(visible=FALSE, targets = c(0,3,7:9)),
-                                     list(width = '225px', targets = c(2)))
+                                     list(visible=FALSE, targets = c(0,3,7:9,34:36)),
+                                     list(width = '225px', targets = c(2)),
+                                     list(className='dt-center', targets=c(4:6,10:15))
+                                 )
                                  )
                   ) %>%
             formatStyle(
-                'change30', 'change30YN',
+                '30-Min Change', 'change30YN',
                 backgroundColor = styleEqual(c('Up', 'Down', 'Niether', 'Na'),
                                              c('#ef6548', '#addd8e',NA,NA)),
                 fontWeight = styleEqual(c('Up', 'Down', 'Niether', 'Na'),
                                              c('bold', 'bold',NA,NA))
             ) %>%
             formatStyle(
-                'change15', 'change15YN',
+                '15-Min Change', 'change15YN',
                 backgroundColor = styleEqual(c('Up', 'Down', 'Niether', 'Na'),
                                              c('#ef6548', '#addd8e',NA,NA)),
                 fontWeight = styleEqual(c('Up', 'Down', 'Niether', 'Na'),
                                              c('bold', 'bold',NA,NA))
             ) %>%
             formatStyle(
-                'change5', 'change5YN',
+                '5-Min Change', 'change5YN',
                 backgroundColor = styleEqual(c('Up', 'Down', 'Niether', 'Na'),
                                              c('#ef6548', '#addd8e',NA,NA)),
                 fontWeight = styleEqual(c('Up', 'Down', 'Niether', 'Na'),
                                              c('bold', 'bold',NA,NA))
             ) %>%
-            formatRound('change30', 2) %>%
-            formatRound('change15', 2) %>%
-            formatRound('change5', 2) %>%
-            formatRound('def',1)
+            formatRound('30-Min Change', 2) %>%
+            formatRound('15-Min Change', 2) %>%
+            formatRound('5-Min Change', 2) %>%
+            formatRound('Minutes Since',1)
 
     })
 
     ######################################################################
     ######################################################################
     ## Reacive dataset
-    refrData <- eventReactive(input$go, {
+    ## dReact1 <- reactive({
 
-        ## Pars
-        QParameterCd <- "00065" ## stage, feet
-        ## startTime <- Sys.Date()-input$daysBack ## yesterday
-        startTime <- as.Date(format(Sys.time(), tz="America/Panama"))-input$daysBack
+    ##     ## Pars
+    ##     QParameterCd <- "00065" ## stage, feet
+    ##     ## startTime <- Sys.Date()-input$daysBack ## yesterday
+    ##     startTime <- as.Date(format(Sys.time(), tz="America/Panama"))-input$dSlide
 
-        ## Pull most recent data
-        recentQ <- readNWISuv(siteNumbers=siteCoor$SiteCode,
-                              parameterCd=QParameterCd,
-                              startDate=startTime, tz="America/New_York")
-        rQ <- recentQ[,c("site_no", "dateTime", "X_00065_00000")]
+    ##     ## Pull most recent data
+    ##     recentQ <- readNWISuv(siteNumbers=siteCoor$SiteCode,
+    ##                           parameterCd=QParameterCd,
+    ##                           startDate=startTime, tz="America/New_York")
+    ##     rQ <- recentQ[,c("site_no", "dateTime", "X_00065_00000")]
 
-        #############################################################################
-        ## insert code here to make graphs to hyperlink to sites
-        list1 <<- split(rQ,rQ$site_no)
-
-
-        #############################################################################
-        ## Keep last 12 hours
-        rQ <- filter(rQ,
-                     dateTime>=Sys.time()-(60*60*2))
-
-        ## Pull out newest data dateTime for each site
-        newestDt <- rQ %>%
-            group_by(site_no) %>%
-            filter(dateTime == max(dateTime)) %>%
-            select(site_no, dateTime) %>%
-            mutate(def=difftime(Sys.time(), dateTime, units="min")) %>%
-            as.data.frame()
-
-        ## Reshape
-        r2 <- reshape(rQ, idvar="site_no", v.names="X_00065_00000",
-                      timevar="dateTime", direction="wide")
-
-        ## Rename
-        names(r2) <- substring(names(r2), 20, 30)
-        names(r2)[1] <- "SiteCode"
-        r3 <- r2[sort(names(r2), decreasing=TRUE)]
-        r3 <- r3[order(r3$SiteCode),]
+    ##     #############################################################################
+    ##     ## insert code here to make graphs to hyperlink to sites
+    ##     list1 <- split(rQ,rQ$site_no)
 
 
-        SiteNames <- siteCoor$SiteName[order(siteCoor$SiteCode)]
+    ##     #############################################################################
+    ##     ## Keep last 12 hours
+    ##     rQ <- filter(rQ,
+    ##                  dateTime>=Sys.time()-(60*60*2))
 
-        ## Add on site names
-        r4 <- cbind(SiteNames, r3)
+    ##     ## Pull out newest data dateTime for each site
+    ##     newestDt <- rQ %>%
+    ##         group_by(site_no) %>%
+    ##         filter(dateTime == max(dateTime)) %>%
+    ##         select(site_no, dateTime) %>%
+    ##         mutate(def=difftime(Sys.time(), dateTime, units="min")) %>%
+    ##         as.data.frame()
 
-        r5 <- merge(r4, attributes(recentQ)$siteInfo[,c("site_no","dec_lat_va","dec_lon_va")],
-                    by.x="SiteCode", by.y="site_no", all=TRUE)
+    ##     ## Reshape
+    ##     r2 <- reshape(rQ, idvar="site_no", v.names="X_00065_00000",
+    ##                   timevar="dateTime", direction="wide")
 
-        ## Also merge the "how old is newest data" column
-        r5 <- merge(r5, newestDt, by.x="SiteCode", by.y="site_no", all=TRUE)
+    ##     ## Rename
+    ##     names(r2) <- substring(names(r2), 20, 30)
+    ##     names(r2)[1] <- "SiteCode"
+    ##     r3 <- r2[sort(names(r2), decreasing=TRUE)]
+    ##     r3 <- r3[order(r3$SiteCode),]
 
 
-        ## This produces an array with column indexes correpsondig to first numeric
-        ## data per site
-        b <- rep(NA,53)
-        for (i in 1:53) {
-            b[i] <- which(names(r5)==format(r5$dateTime[i], format="%m-%d %H:%M"))
-        }
+    ##     SiteNames <- siteCoor$SiteName[order(siteCoor$SiteCode)]
 
-        ##browser()
+    ##     ## Add on site names
+    ##     r4 <- cbind(SiteNames, r3)
 
-        ## Change columns
-        for (i in 1:53) {
-                    r5$change5[i] <- r5[i,b[i]]-r5[i,b[i]+1]
-                    r5$change5YN <- rep("Na",53)
-                    r5$change5YN[which(r5$change5<0)] <- "Down"
-                    r5$change5YN[which(r5$change5==0)] <- "Same"
-                    r5$change5YN[which(r5$change5>0)] <- "Up"
+    ##     r5 <- merge(r4, attributes(recentQ)$siteInfo[,c("site_no","dec_lat_va","dec_lon_va")],
+    ##                 by.x="SiteCode", by.y="site_no", all=TRUE)
 
-                    r5$change15[i] <- r5[i,b[i]]-r5[i,b[i]+3]
-                    r5$change15YN <- rep("Na",53)
-                    r5$change15YN[which(r5$change15<0)] <- "Down"
-                    r5$change15YN[which(r5$change15==0)] <- "Same"
-                    r5$change15YN[which(r5$change15>0)] <- "Up"
+    ##     ## Also merge the "how old is newest data" column
+    ##     r5 <- merge(r5, newestDt, by.x="SiteCode", by.y="site_no", all=TRUE)
 
-                    r5$change30[i] <- r5[i,b[1]]-r5[i,b[i]+6]
-                    r5$change30YN <- rep("Na",53)
-                    r5$change30YN[which(r5$change30<0)] <- "Down"
-                    r5$change30YN[which(r5$change30==0)] <- "Same"
-                    r5$change30YN[which(r5$change30>0)] <- "Up"
-        }
 
-        r5$Site <- r5$SiteNames
+    ##     ## This produces an array with column indexes correpsondig to first numeric
+    ##     ## data per site
+    ##     b <- rep(NA,53)
+    ##     for (i in 1:53) {
+    ##         b[i] <- which(names(r5)==format(r5$dateTime[i], format="%m-%d %H:%M"))
+    ##     }
 
-        r5$Graph <- paste0("'<img src='icon", r5$SiteCode,  ".png' height='20'></img>'")
+    ##     ## Change columns
+    ##     for (i in 1:53) {
+    ##                 r5$change5[i] <- r5[i,b[i]]-r5[i,b[i]+1]
+    ##                 r5$change5YN <- rep("Na",53)
+    ##                 r5$change5YN[which(r5$change5<0)] <- "Down"
+    ##                 r5$change5YN[which(r5$change5==0)] <- "Same"
+    ##                 r5$change5YN[which(r5$change5>0)] <- "Up"
 
-        r5 <<- select(r5, Site, Graph, SiteNames, SiteCode,
-                      change5, change15, change30,
-                      change5YN, change15YN, change30YN, def,
-                      everything(), latitude=dec_lat_va,
-                      longitude=dec_lon_va)
-    })
+    ##                 r5$change15[i] <- r5[i,b[i]]-r5[i,b[i]+3]
+    ##                 r5$change15YN <- rep("Na",53)
+    ##                 r5$change15YN[which(r5$change15<0)] <- "Down"
+    ##                 r5$change15YN[which(r5$change15==0)] <- "Same"
+    ##                 r5$change15YN[which(r5$change15>0)] <- "Up"
+
+    ##                 r5$change30[i] <- r5[i,b[1]]-r5[i,b[i]+6]
+    ##                 r5$change30YN <- rep("Na",53)
+    ##                 r5$change30YN[which(r5$change30<0)] <- "Down"
+    ##                 r5$change30YN[which(r5$change30==0)] <- "Same"
+    ##                 r5$change30YN[which(r5$change30>0)] <- "Up"
+    ##     }
+
+    ##     r5$Site <- r5$SiteNames
+
+    ##     r5$Graph <- paste0("'<img src='icon", r5$SiteCode,  ".png' height='20'></img>'")
+
+    ##     r5 <- select(r5, Site, Graph, SiteNames, SiteCode,
+    ##                   change5, change15, change30,
+    ##                   change5YN, change15YN, change30YN, def,
+    ##                   everything(), latitude=dec_lat_va,
+    ##                   longitude=dec_lon_va)
+
+    ##     ##browser()
+    ##     return(list(r5=r5, list1=list1))
+    ##     })
+
+
+    ## refreshData <- observeEvent(input$updData, {
+
+    ##     ## Pars
+    ##     QParameterCd <- "00065" ## stage, feet
+
+    ##     startTime <- as.Date(format(Sys.time(), tz="America/Panama"))
+
+    ##     ## Pull most recent data
+    ##     recentQ <- readNWISuv(siteNumbers=siteCoor$SiteCode,
+    ##                           parameterCd=QParameterCd,
+    ##                           startDate=startTime, tz="America/New_York")
+    ##     rQ <- recentQ[,c("site_no", "dateTime", "X_00065_00000")]
+
+    ##     browser()
+
+    ##     #############################################################################
+    ##     ## insert code here to make graphs to hyperlink to sites
+    ##     newList1 <- split(rQ,rQ$site_no)
+
+
+    ##     #############################################################################
+    ##     ## Keep last 12 hours
+    ##     rQ <- filter(rQ,
+    ##                  dateTime>=Sys.time()-(60*60*2))
+
+    ##     ## Pull out newest data dateTime for each site
+    ##     newestDt <- rQ %>%
+    ##         group_by(site_no) %>%
+    ##         filter(dateTime == max(dateTime)) %>%
+    ##         select(site_no, dateTime) %>%
+    ##         mutate(def=difftime(Sys.time(), dateTime, units="min")) %>%
+    ##         as.data.frame()
+
+    ##     ## Reshape
+    ##     r2 <- reshape(rQ, idvar="site_no", v.names="X_00065_00000",
+    ##                   timevar="dateTime", direction="wide")
+
+    ##     ## Rename
+    ##     names(r2) <- substring(names(r2), 20, 30)
+    ##     names(r2)[1] <- "SiteCode"
+    ##     r3 <- r2[sort(names(r2), decreasing=TRUE)]
+    ##     r3 <- r3[order(r3$SiteCode),]
+
+
+    ##     SiteNames <- siteCoor$SiteName[order(siteCoor$SiteCode)]
+
+    ##     ## Add on site names
+    ##     r4 <- cbind(SiteNames, r3)
+
+    ##     r5 <- merge(r4, attributes(recentQ)$siteInfo[,c("site_no","dec_lat_va","dec_lon_va")],
+    ##                 by.x="SiteCode", by.y="site_no", all=TRUE)
+
+    ##     ## Also merge the "how old is newest data" column
+    ##     r5 <- merge(r5, newestDt, by.x="SiteCode", by.y="site_no", all=TRUE)
+
+
+    ##     ## This produces an array with column indexes correpsondig to first numeric
+    ##     ## data per site
+    ##     b <- rep(NA,53)
+    ##     for (i in 1:53) {
+    ##         b[i] <- which(names(r5)==format(r5$dateTime[i], format="%m-%d %H:%M"))
+    ##     }
+
+    ##     ## Change columns
+    ##     for (i in 1:53) {
+    ##                 r5$change5[i] <- r5[i,b[i]]-r5[i,b[i]+1]
+    ##                 r5$change5YN <- rep("Na",53)
+    ##                 r5$change5YN[which(r5$change5<0)] <- "Down"
+    ##                 r5$change5YN[which(r5$change5==0)] <- "Same"
+    ##                 r5$change5YN[which(r5$change5>0)] <- "Up"
+
+    ##                 r5$change15[i] <- r5[i,b[i]]-r5[i,b[i]+3]
+    ##                 r5$change15YN <- rep("Na",53)
+    ##                 r5$change15YN[which(r5$change15<0)] <- "Down"
+    ##                 r5$change15YN[which(r5$change15==0)] <- "Same"
+    ##                 r5$change15YN[which(r5$change15>0)] <- "Up"
+
+    ##                 r5$change30[i] <- r5[i,b[1]]-r5[i,b[i]+6]
+    ##                 r5$change30YN <- rep("Na",53)
+    ##                 r5$change30YN[which(r5$change30<0)] <- "Down"
+    ##                 r5$change30YN[which(r5$change30==0)] <- "Same"
+    ##                 r5$change30YN[which(r5$change30>0)] <- "Up"
+    ##     }
+
+    ##     r5$Site <- r5$SiteNames
+
+    ##     r5$Graph <- paste0("'<img src='icon", r5$SiteCode,  ".png' height='20'></img>'")
+
+    ##     r5 <- select(r5, Site, Graph, SiteNames, SiteCode,
+    ##                   change5, change15, change30,
+    ##                   change5YN, change15YN, change30YN, def,
+    ##                   everything(), latitude=dec_lat_va,
+    ##                   longitude=dec_lon_va)
+
+    ##     ##browser()
+    ##     return(list(r5=r5, list1=list1))
+    ## }
+    ## )
+
+
+    ## refrData <- eventReactive(input$go, {
+
+    ##     ## Pars
+    ##     QParameterCd <- "00065" ## stage, feet
+    ##     ## startTime <- Sys.Date()-input$daysBack ## yesterday
+    ##     startTime <- as.Date(format(Sys.time(), tz="America/Panama"))-input$daysBack
+
+    ##     ## Pull most recent data
+    ##     recentQ <- readNWISuv(siteNumbers=siteCoor$SiteCode,
+    ##                           parameterCd=QParameterCd,
+    ##                           startDate=startTime, tz="America/New_York")
+    ##     rQ <- recentQ[,c("site_no", "dateTime", "X_00065_00000")]
+
+    ##     #############################################################################
+    ##     ## insert code here to make graphs to hyperlink to sites
+    ##     list1 <<- split(rQ,rQ$site_no)
+
+
+    ##     #############################################################################
+    ##     ## Keep last 12 hours
+    ##     rQ <- filter(rQ,
+    ##                  dateTime>=Sys.time()-(60*60*2))
+
+    ##     ## Pull out newest data dateTime for each site
+    ##     newestDt <- rQ %>%
+    ##         group_by(site_no) %>%
+    ##         filter(dateTime == max(dateTime)) %>%
+    ##         select(site_no, dateTime) %>%
+    ##         mutate(def=difftime(Sys.time(), dateTime, units="min")) %>%
+    ##         as.data.frame()
+
+    ##     ## Reshape
+    ##     r2 <- reshape(rQ, idvar="site_no", v.names="X_00065_00000",
+    ##                   timevar="dateTime", direction="wide")
+
+    ##     ## Rename
+    ##     names(r2) <- substring(names(r2), 20, 30)
+    ##     names(r2)[1] <- "SiteCode"
+    ##     r3 <- r2[sort(names(r2), decreasing=TRUE)]
+    ##     r3 <- r3[order(r3$SiteCode),]
+
+
+    ##     SiteNames <- siteCoor$SiteName[order(siteCoor$SiteCode)]
+
+    ##     ## Add on site names
+    ##     r4 <- cbind(SiteNames, r3)
+
+    ##     r5 <- merge(r4, attributes(recentQ)$siteInfo[,c("site_no","dec_lat_va","dec_lon_va")],
+    ##                 by.x="SiteCode", by.y="site_no", all=TRUE)
+
+    ##     ## Also merge the "how old is newest data" column
+    ##     r5 <- merge(r5, newestDt, by.x="SiteCode", by.y="site_no", all=TRUE)
+
+
+    ##     ## This produces an array with column indexes correpsondig to first numeric
+    ##     ## data per site
+    ##     b <- rep(NA,53)
+    ##     for (i in 1:53) {
+    ##         b[i] <- which(names(r5)==format(r5$dateTime[i], format="%m-%d %H:%M"))
+    ##     }
+
+    ##     ## Change columns
+    ##     for (i in 1:53) {
+    ##                 r5$change5[i] <- r5[i,b[i]]-r5[i,b[i]+1]
+    ##                 r5$change5YN <- rep("Na",53)
+    ##                 r5$change5YN[which(r5$change5<0)] <- "Down"
+    ##                 r5$change5YN[which(r5$change5==0)] <- "Same"
+    ##                 r5$change5YN[which(r5$change5>0)] <- "Up"
+
+    ##                 r5$change15[i] <- r5[i,b[i]]-r5[i,b[i]+3]
+    ##                 r5$change15YN <- rep("Na",53)
+    ##                 r5$change15YN[which(r5$change15<0)] <- "Down"
+    ##                 r5$change15YN[which(r5$change15==0)] <- "Same"
+    ##                 r5$change15YN[which(r5$change15>0)] <- "Up"
+
+    ##                 r5$change30[i] <- r5[i,b[1]]-r5[i,b[i]+6]
+    ##                 r5$change30YN <- rep("Na",53)
+    ##                 r5$change30YN[which(r5$change30<0)] <- "Down"
+    ##                 r5$change30YN[which(r5$change30==0)] <- "Same"
+    ##                 r5$change30YN[which(r5$change30>0)] <- "Up"
+    ##     }
+
+    ##     r5$Site <- r5$SiteNames
+
+    ##     r5$Graph <- paste0("'<img src='icon", r5$SiteCode,  ".png' height='20'></img>'")
+
+    ##     r5 <<- select(r5, Site, Graph, SiteNames, SiteCode,
+    ##                   change5, change15, change30,
+    ##                   change5YN, change15YN, change30YN, def,
+    ##                   everything(), latitude=dec_lat_va,
+    ##                   longitude=dec_lon_va)
+    ## })
 
     ######################################################################
     ##
-    updateDs <- eventReactive(input$updData, {
+    ## updateDs <- eventReactive(input$updData, {
 
-        browser()
+    ##     ## Pars
+    ##     QParameterCd <- "00065" ## stage, feet
+    ##     ## startTime <- Sys.Date()-input$daysBack ## yesterday
+    ##     startTime <- as.Date(format(Sys.time(), tz="America/Panama"))
 
-        ## Pars
-        QParameterCd <- "00065" ## stage, feet
-        ## startTime <- Sys.Date()-input$daysBack ## yesterday
-        startTime <- as.Date(format(Sys.time(), tz="America/Panama"))
+    ##     ## Pull most recent data
+    ##     mostRecentQ <- readNWISuv(siteNumbers=siteCoor$SiteCode,
+    ##                           parameterCd=QParameterCd,
+    ##                           startDate=startTime, tz="America/New_York")
+    ##     rQ <- recentQ[,c("site_no", "dateTime", "X_00065_00000")]
 
-        ## Pull most recent data
-        mostRecentQ <- readNWISuv(siteNumbers=siteCoor$SiteCode,
-                              parameterCd=QParameterCd,
-                              startDate=startTime, tz="America/New_York")
-        rQ <- recentQ[,c("site_no", "dateTime", "X_00065_00000")]
+    ##     #############################################################################
+    ##     ## insert code here to make graphs to hyperlink to sites
+    ##     newList1 <- split(rQ,rQ$site_no)
 
-        #############################################################################
-        ## insert code here to make graphs to hyperlink to sites
-        newList1 <- split(rQ,rQ$site_no)
+    ##     #############################################################################
+    ##     ## Keep last 12 hours
+    ##     rQ <- filter(rQ,
+    ##                  dateTime>=Sys.time()-(60*60*2))
 
-        #############################################################################
-        ## Keep last 12 hours
-        rQ <- filter(rQ,
-                     dateTime>=Sys.time()-(60*60*2))
+    ##     ## Pull out newest data dateTime for each site
+    ##     newestDt <- rQ %>%
+    ##         group_by(site_no) %>%
+    ##         filter(dateTime == max(dateTime)) %>%
+    ##         select(site_no, dateTime) %>%
+    ##         mutate(def=difftime(Sys.time(), dateTime, units="min")) %>%
+    ##         as.data.frame()
 
-        ## Pull out newest data dateTime for each site
-        newestDt <- rQ %>%
-            group_by(site_no) %>%
-            filter(dateTime == max(dateTime)) %>%
-            select(site_no, dateTime) %>%
-            mutate(def=difftime(Sys.time(), dateTime, units="min")) %>%
-            as.data.frame()
+    ##     ## Reshape
+    ##     r2 <- reshape(rQ, idvar="site_no", v.names="X_00065_00000",
+    ##                   timevar="dateTime", direction="wide")
 
-        ## Reshape
-        r2 <- reshape(rQ, idvar="site_no", v.names="X_00065_00000",
-                      timevar="dateTime", direction="wide")
+    ##     ## Rename
+    ##     names(r2) <- substring(names(r2), 20, 30)
+    ##     names(r2)[1] <- "SiteCode"
+    ##     r3 <- r2[sort(names(r2), decreasing=TRUE)]
+    ##     r3 <- r3[order(r3$SiteCode),]
 
-        ## Rename
-        names(r2) <- substring(names(r2), 20, 30)
-        names(r2)[1] <- "SiteCode"
-        r3 <- r2[sort(names(r2), decreasing=TRUE)]
-        r3 <- r3[order(r3$SiteCode),]
+    ##     SiteNames <- siteCoor$SiteName[order(siteCoor$SiteCode)]
 
+    ##     ## Add on site names
+    ##     r4 <- cbind(SiteNames, r3)
 
-        SiteNames <- siteCoor$SiteName[order(siteCoor$SiteCode)]
+    ##     r5 <- merge(r4, attributes(recentQ)$siteInfo[,c("site_no","dec_lat_va","dec_lon_va")],
+    ##                 by.x="SiteCode", by.y="site_no", all=TRUE)
 
-        ## Add on site names
-        r4 <- cbind(SiteNames, r3)
+    ##     ## Also merge the "how old is newest data" column
+    ##     r5 <- merge(r5, newestDt, by.x="SiteCode", by.y="site_no", all=TRUE)
 
-        r5 <- merge(r4, attributes(recentQ)$siteInfo[,c("site_no","dec_lat_va","dec_lon_va")],
-                    by.x="SiteCode", by.y="site_no", all=TRUE)
+    ##     ## This produces an array with column indexes correpsondig to first numeric
+    ##     ## data per site
+    ##     b <- rep(NA,53)
+    ##     for (i in 1:53) {
+    ##         b[i] <- which(names(r5)==format(r5$dateTime[i], format="%m-%d %H:%M"))
+    ##     }
 
-        ## Also merge the "how old is newest data" column
-        r5 <- merge(r5, newestDt, by.x="SiteCode", by.y="site_no", all=TRUE)
+    ##     ## Change columns
+    ##     for (i in 1:53) {
+    ##                 r5$change5[i] <- r5[i,b[i]]-r5[i,b[i]+1]
+    ##                 r5$change5YN <- rep("Na",53)
+    ##                 r5$change5YN[which(r5$change5<0)] <- "Down"
+    ##                 r5$change5YN[which(r5$change5==0)] <- "Same"
+    ##                 r5$change5YN[which(r5$change5>0)] <- "Up"
 
+    ##                 r5$change15[i] <- r5[i,b[i]]-r5[i,b[i]+3]
+    ##                 r5$change15YN <- rep("Na",53)
+    ##                 r5$change15YN[which(r5$change15<0)] <- "Down"
+    ##                 r5$change15YN[which(r5$change15==0)] <- "Same"
+    ##                 r5$change15YN[which(r5$change15>0)] <- "Up"
 
-        ## This produces an array with column indexes correpsondig to first numeric
-        ## data per site
-        b <- rep(NA,53)
-        for (i in 1:53) {
-            b[i] <- which(names(r5)==format(r5$dateTime[i], format="%m-%d %H:%M"))
-        }
+    ##                 r5$change30[i] <- r5[i,b[1]]-r5[i,b[i]+6]
+    ##                 r5$change30YN <- rep("Na",53)
+    ##                 r5$change30YN[which(r5$change30<0)] <- "Down"
+    ##                 r5$change30YN[which(r5$change30==0)] <- "Same"
+    ##                 r5$change30YN[which(r5$change30>0)] <- "Up"
+    ##     }
 
-        ##browser()
+    ##     r5$Site <- r5$SiteNames
 
-        ## Change columns
-        for (i in 1:53) {
-                    r5$change5[i] <- r5[i,b[i]]-r5[i,b[i]+1]
-                    r5$change5YN <- rep("Na",53)
-                    r5$change5YN[which(r5$change5<0)] <- "Down"
-                    r5$change5YN[which(r5$change5==0)] <- "Same"
-                    r5$change5YN[which(r5$change5>0)] <- "Up"
+    ##     r5$Graph <- paste0("'<img src='icon", r5$SiteCode,  ".png' height='20'></img>'")
 
-                    r5$change15[i] <- r5[i,b[i]]-r5[i,b[i]+3]
-                    r5$change15YN <- rep("Na",53)
-                    r5$change15YN[which(r5$change15<0)] <- "Down"
-                    r5$change15YN[which(r5$change15==0)] <- "Same"
-                    r5$change15YN[which(r5$change15>0)] <- "Up"
-
-                    r5$change30[i] <- r5[i,b[1]]-r5[i,b[i]+6]
-                    r5$change30YN <- rep("Na",53)
-                    r5$change30YN[which(r5$change30<0)] <- "Down"
-                    r5$change30YN[which(r5$change30==0)] <- "Same"
-                    r5$change30YN[which(r5$change30>0)] <- "Up"
-        }
-
-        r5$Site <- r5$SiteNames
-
-        r5$Graph <- paste0("'<img src='icon", r5$SiteCode,  ".png' height='20'></img>'")
-
-        r5 <<- select(r5, Site, Graph, SiteNames, SiteCode,
-                      change5, change15, change30,
-                      change5YN, change15YN, change30YN, def,
-                      everything(), latitude=dec_lat_va,
-                      longitude=dec_lon_va)
-    })
-
-
+    ##     r5 <<- select(r5, Site, Graph, SiteNames, SiteCode,
+    ##                   change5, change15, change30,
+    ##                   change5YN, change15YN, change30YN, def,
+    ##                   everything(), latitude=dec_lat_va,
+    ##                   longitude=dec_lon_va)
+    ## })
 
     ######################################################################
     ######################################################################
@@ -342,7 +685,9 @@ shinyServer(function(input, output, session) {
             plotSite <- substr(gsub(".*on(.*)","\\1", info$value),
                                1, nchar(gsub(".*on(.*)","\\1", info$value))-25)
 
-            ds <- list1[[plotSite]]
+            ## ds <- list1[[plotSite]]
+            ## ds <- fData()[["list1"]][[plotSite]]
+            ds <- useData()[["list1"]][[plotSite]]
 
             ## Subset historical daily flows
             hData <- histDaily %>%
