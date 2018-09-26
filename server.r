@@ -38,7 +38,6 @@ shinyServer(function(input, output, session) {
 
         proxy <- leafletProxy('mapy')
 
-
         ## Reset previously selected marker
         if(!is.null(prev_row()))
         {
@@ -57,6 +56,9 @@ shinyServer(function(input, output, session) {
     })
 
 
+    ######################################################################
+    ######################################################################
+    ## Table
     ## add CSS style 'cursor: pointer' to the 0-th column (i.e. row names)
     output$x1 = DT::renderDataTable({
         datatable(data=refrData(),
@@ -102,10 +104,11 @@ shinyServer(function(input, output, session) {
 
     })
 
+    ######################################################################
+    ######################################################################
     ## Reacive dataset
     refrData <- eventReactive(input$go, {
 
-        ########################################################################
         ## Pars
         print(Sys.timezone())
         QParameterCd <- "00065" ## stage, feet
@@ -123,8 +126,8 @@ shinyServer(function(input, output, session) {
         tic("process usgs data")
         rQ <- recentQ[,c("site_no", "dateTime", "X_00065_00000")]
 
-        ## #############################################################################
-        ## ## insert code here to make graphs to hyperlink to sites
+        #############################################################################
+        ## insert code here to make graphs to hyperlink to sites
         list1 <<- split(rQ,rQ$site_no)
 
 
@@ -207,7 +210,6 @@ shinyServer(function(input, output, session) {
                       longitude=dec_lon_va)
     })
 
-
     ######################################################################
     ######################################################################
     ## Graphing functions, possible that two observeEvents not needed
@@ -241,7 +243,6 @@ shinyServer(function(input, output, session) {
 
             plotSite <- substr(gsub(".*on(.*)","\\1", info$value),
                                1, nchar(gsub(".*on(.*)","\\1", info$value))-25)
-
 
             ds <- list1[[plotSite]]
 
