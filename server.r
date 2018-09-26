@@ -38,17 +38,6 @@ shinyServer(function(input, output, session) {
 
         proxy <- leafletProxy('mapy')
 
-        ## proxy %>%
-        ##     addMarkers(popup=paste(prev_row()$SiteNames,
-        ##                        br(),
-        ##                        paste0("<a href='",
-        ##                               siteCoor$usgsLink[which(siteCoor$SiteName==prev_row()$SiteNames)],
-        ##                               "'>USGS</a>"),
-        ##                        "(Right click to open in new window)"),##as.character(row_selected$SiteNames),
-        ##                       ## layerId = as.character(row_selected$id),
-        ##                       layerId = "Selected Site",
-        ##                       lng=row_selected$longitude,
-        ##                       lat=row_selected$latitude)
 
         ## Reset previously selected marker
         if(!is.null(prev_row()))
@@ -61,20 +50,11 @@ shinyServer(function(input, output, session) {
                                       siteCoor$usgsLink[which(siteCoor$SiteName==prev_row()$SiteNames)],
                                       "'>USGS</a>"),
                                "(Right click to open in new window)"),
-                    ##popup=as.character(prev_row()$SiteNames),
-                    ## Not this....layerId = as.character(prev_row()$id),
                     layerId = "Selected Site",
                     lng=prev_row()$longitude,
                     lat=prev_row()$latitude)
         }
     })
-
-    ## observeEvent(input$mapy_marker_click, {
-    ##     clickId <- input$mapy_marker_click$lat
-    ##     dataTableProxy("x1") %>%
-    ##         selectRows(which(refrData()$latitude == clickId))
-    ## })
-
 
 
     ## add CSS style 'cursor: pointer' to the 0-th column (i.e. row names)
@@ -83,7 +63,6 @@ shinyServer(function(input, output, session) {
                   rownames=FALSE,
                   escape=FALSE,
                   selection = "single",
-                  ##selection="none",
                   options = list(pageLength = 60,
                                  stateSave = TRUE,
                                  dom = 't',
@@ -215,26 +194,6 @@ shinyServer(function(input, output, session) {
                     r5$change30YN[which(r5$change30>0)] <- "Up"
         }
 
-
-        ## ## Change columns
-        ## r5$change5 <- r5[,3]-r5[,4]
-        ## r5$change5YN <- rep("Na",53)
-        ## r5$change5YN[which(r5$change5<0)] <- "Down"
-        ## r5$change5YN[which(r5$change5==0)] <- "Same"
-        ## r5$change5YN[which(r5$change5>0)] <- "Up"
-
-        ## r5$change15 <- r5[,3]-r5[,6]
-        ## r5$change15YN <- rep("Na",53)
-        ## r5$change15YN[which(r5$change15<0)] <- "Down"
-        ## r5$change15YN[which(r5$change15==0)] <- "Same"
-        ## r5$change15YN[which(r5$change15>0)] <- "Up"
-
-        ## r5$change30 <- r5[,3]-r5[,9]
-        ## r5$change30YN <- rep("Na",53)
-        ## r5$change30YN[which(r5$change30<0)] <- "Down"
-        ## r5$change30YN[which(r5$change30==0)] <- "Same"
-        ## r5$change30YN[which(r5$change30>0)] <- "Up"
-
         r5$Site <- r5$SiteNames
 
         r5$Graph <- paste0("'<img src='icon", r5$SiteCode,  ".png' height='20'></img>'")
@@ -261,7 +220,6 @@ shinyServer(function(input, output, session) {
         } else if (!is.null(info$value) & info$col==1){
             showModal(
                 modalDialog(
-                    ## htmlOutput("text"),
                     plotlyOutput("graphs"),
                     easyClose = TRUE,
                     footer = NULL,
@@ -281,16 +239,13 @@ shinyServer(function(input, output, session) {
         } else if (!is.null(info$value) & info$col==1){
             tic("click graph")
 
-            ## ds <- list1[[siteCoor$SiteCode[which(siteCoor$SiteName==info$value)]]]
             plotSite <- substr(gsub(".*on(.*)","\\1", info$value),
                                1, nchar(gsub(".*on(.*)","\\1", info$value))-25)
 
 
-            ## ds <- list1[[siteCoor$SiteCode[which(siteCoor$SiteCode==plotSite)]]]
             ds <- list1[[plotSite]]
 
             ## Subset historical daily flows
-            ## index <- which(grepl(plotSite, names(histDaily)))
             hData <- histDaily %>%
                 filter(dates %in% as.Date(ds$dateTime)) %>%
                 select(dtSeq, names(histDaily)[which(grepl(plotSite, names(histDaily)))])
@@ -299,7 +254,6 @@ shinyServer(function(input, output, session) {
                 mm <- plot_ly(data=ds, x=~dateTime) %>%
                     add_lines(y=~X_00065_00000,
                               name=plotSite) %>%
-                    ## name=siteCoor$SiteCode[which(siteCoor$SiteName==plotSite)]) %>%
                     add_lines(x=c(min(ds$dateTime), max(ds$dateTime)), y=rep(hData[2,2]*4,2),
                               name="Fake Flood Stage") %>%
                     add_lines(x=hData$dtSeq, y=hData[,2], name="LT Average") %>%
