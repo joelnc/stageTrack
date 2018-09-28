@@ -33,6 +33,7 @@ saveRDS(n3, file="stageTrack/histDailyFlow.rds")
 ## have stage tracker plotly plots include noon points representing average stage for that day.
 
 #############################################################################
+#############################################################################
 ## Historical Series
 rm(list=ls())
 histDaily <- readRDS("stageTrack/histDailyFlow.rds")
@@ -53,28 +54,11 @@ cc[seq(3,1095, by=3),2:54] <- NA
 
 saveRDS(cc, file="stageTrack/histDailyFlow_Formatted.rds")
 
+dd <- cc[seq(1,1095,3),]
+dd$dtSeq <- dd$dtSeq+3600
+saveRDS(dd, file="stageTrack/histDailyFlow_FormattedPoints.rds")
+
 
 ## df 'cc' looks ready to go.  In plotly, id the column of data for selected site,
 ##  identify the row range for current plot, add lines
 
-#############################################################################
-#############################################################################
-
-
-
-
-plotSite <- "02146300"
-colIndex <- which(grepl(plotSite, names(histDaily)))
-datesPresent <- unique(as.Date(ds$dateTime))
-
-dateVec <- .POSIXct(NA[seq(1,length(datesPresent)*4)])
-dateVec <-  .POSIXct(character(length(datesPresent)*4), tz="America/Panama")
-i11 <- seq(2,length(dateVec),4)
-dateVec[i11-1] <- as.POSIXct(paste(datesPresent,"10:00"), tz="America/Panama")
-dateVec[i11] <- as.POSIXct(paste(datesPresent,"11:00"), tz="America/Panama")
-dateVec[i11+1] <- as.POSIXct(paste(datesPresent,"13:00"), tz="America/Panama")
-dateVec[i11+2] <- as.POSIXct(paste(datesPresent,"14:00"), tz="America/Panama")
-
-sVec <- rep(NA, length(dateVec))
-
-sVec[
