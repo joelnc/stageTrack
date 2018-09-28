@@ -224,7 +224,7 @@ shinyServer(function(input, output, session) {
             proxy %>%
                 addCircleMarkers(radius=5, color="red",
                     popup=paste(prev_row()$SiteNames,
-                               br(),
+                               br(), fillOpacity=0,
                                paste0("<a href='",
                                       siteCoor$usgsLink[which(siteCoor$SiteName==prev_row()$SiteNames)],
                                       "'>USGS</a>"),
@@ -240,7 +240,7 @@ shinyServer(function(input, output, session) {
     ######################################################################
     ## Table
     output$x1 = DT::renderDataTable({
-        datatable(data=as.data.frame(fData()[["r5"]]),##data=refrData(),
+        datatable(data=as.data.frame(fData()[["r5"]]),
                   rownames=FALSE,
                   escape=FALSE,
                   selection = "single",
