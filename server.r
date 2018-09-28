@@ -24,9 +24,6 @@ shinyServer(function(input, output, session) {
                               startDate=startTime, tz="America/New_York")
         rQ <- recentQ[,c("site_no", "dateTime", "X_00065_00000")]
 
-        ## insert code here to make graphs to hyperlink to sites
-        ##list1 <- split(rQ,rQ$site_no)
-
         return(list(rQ=rQ,
                     latLon=attributes(recentQ)$siteInfo[,c("site_no","dec_lat_va","dec_lon_va")]
                     )
@@ -81,7 +78,6 @@ shinyServer(function(input, output, session) {
         rQ <- as.data.frame(useData()[["rQ"]])
         latLon <- as.data.frame(useData()[["latLon"]])
 
-        #############################################################################
         ## Keep last 12 hours
         rQ <- filter(rQ,
                      dateTime>=Sys.time()-(60*60*2))
@@ -137,7 +133,7 @@ shinyServer(function(input, output, session) {
                     r5$change15YN[which(r5$change15==0)] <- "Same"
                     r5$change15YN[which(r5$change15>0)] <- "Up"
 
-                    r5$change30[i] <- r5[i,b[1]]-r5[i,b[i]+6]
+                    r5$change30[i] <- r5[i,b[i]]-r5[i,b[i]+6]
                     r5$change30YN <- rep("Na",53)
                     r5$change30YN[which(r5$change30<0)] <- "Down"
                     r5$change30YN[which(r5$change30==0)] <- "Same"
@@ -146,13 +142,16 @@ shinyServer(function(input, output, session) {
 
         r5$Site <- r5$SiteNames
 
+        ## Try adding on the first data column indexes
+        r5$currentI <- b
+
         r5$Graph <- paste0("'<img src='icon", r5$SiteCode,  ".png' height='20'></img>'")
 
         r5 <- select(r5, Site, Graph, SiteNames, SiteCode,
                      "5-Min Change"=change5, "15-Min Change"=change15,
                      "30-Min Change"=change30, change5YN, change15YN, change30YN,
                      "Minutes Since"=def, everything(), latitude=dec_lat_va,
-                      longitude=dec_lon_va)
+                      longitude=dec_lon_va, currentI)
 
         return(list(r5=r5))
     })
@@ -162,20 +161,49 @@ shinyServer(function(input, output, session) {
     ## Maps
     output$mapy <- renderLeaflet({
 
+        ## This needs to be linked up with actual stage or whatever data....
+        pal <- c('#67001f','#b2182b','#d6604d','#f4a582','#fddbc7','#d1e5f0',
+                 '#92c5de','#4393c3','#2166ac','#053061')
+
+        ds <- fData()[["r5"]]
+        ##browser()
+        dd <- rep(NA, 53)
+        for (i in 1:53) {
+            dd[i] <- ds[i,ds$currentI[i]+9]
+        }
+
+        myPal <- colorNumeric(
+            palette = "RdYlBu",
+            domain = dd, reverse=FALSE)
+
+        myPalR <- colorNumeric(
+            palette = "RdYlBu",
+            domain = dd, reverse=TRUE)
+
+
         leaflet() %>%
-            addProviderTiles(providers$OpenStreetMap.Mapnik, group="Streets") %>%
-            addCircleMarkers(data=siteCoor, radius=3,
-                             popup=paste(siteCoor$SiteName,
-                                         br(),
-                                         paste0("<a href='",
-                                                siteCoor$usgsLink,
-                                               "'>USGS</a>", " (Right click to open in new window)")
-                                         )) %>%
-            fitBounds(lng1=min(siteCoor$longitude),
-                      lng2=max(siteCoor$longitude),
-                      lat1=min(siteCoor$latitude),
-                      lat2=max(siteCoor$latitude)
+            ## addProviderTiles(providers$OpenStreetMap.BlackAndWhite, group="Streets") %>% #.Mapnik
+            addProviderTiles(providers$Esri.WorldGrayCanvas, group="Streets") %>% #.Mapnik
+            addCircleMarkers(data=ds, radius=3, color=~myPalR(dd),
+                             fillOpacity=0.75, stroke=FALSE,
+                             popup=paste(ds$SiteNames,
+                                         br()
+                                         )
+                             ) %>%
+            addLegend(position = c("topright"), myPal, values=dd, na.label = "NA",
+                      bins = 10, opacity = 0.7, labels = NULL,
+                      className = "info legend",
+                      layerId = NULL, group = NULL,
+                      labFormat = labelFormat(transform = function(x) sort(x, decreasing = TRUE)),
+                      title="Gage Height (ft)"
+                      ) %>%
+
+              fitBounds(lng1=min(ds$longitude),
+                      lng2=max(ds$longitude),
+                      lat1=min(ds$latitude),
+                      lat2=max(ds$latitude)
                       )
+
     })
 
     ## Previuos row holder
@@ -295,7 +323,7 @@ shinyServer(function(input, output, session) {
 
             ## Subset historical daily flows
             hData <- histDaily %>%
-                filter(dates %in% as.Date(ds$dateTime)) %>%
+                filter(dates %in% as.Date(ds$dateTime, tz="America/New_York")) %>%
                 select(dtSeq, names(histDaily)[which(grepl(plotSite, names(histDaily)))])
 
             output$graphs <- renderPlotly({
