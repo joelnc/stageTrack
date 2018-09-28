@@ -15,11 +15,10 @@ shinyServer(function(input, output, session) {
 
         ## Pars
         QParameterCd <- "00065" ## stage, feet
-        ## startTime <- Sys.Date()-input$daysBack ## yesterday
         startTime <- as.Date(format(Sys.time(), tz="America/Panama"))-input$dSlide
 
         ## Pull most recent data
-        recentQ <- readNWISuv(siteNumbers=siteCoor$SiteCode,
+        recentQ <- readNWISuv(siteNumbers=siteCoor$site_no,
                               parameterCd=QParameterCd,
                               startDate=startTime, tz="America/New_York")
         rQ <- recentQ[,c("site_no", "dateTime", "X_00065_00000")]
@@ -47,13 +46,11 @@ shinyServer(function(input, output, session) {
             rQ_Orig <- as.data.frame(baseData()[["rQ"]])
 
             ## Pull today
-            ## Pars
             QParameterCd <- "00065" ## stage, feet
-            ## startTime <- Sys.Date()-input$daysBack ## yesterday
             startTime <- as.Date(format(Sys.time(), tz="America/Panama"))
 
             ## Pull most recent data
-            recentQ <- readNWISuv(siteNumbers=siteCoor$SiteCode,
+            recentQ <- readNWISuv(siteNumbers=siteCoor$site_no,
                                   parameterCd=QParameterCd,
                                   startDate=startTime, tz="America/New_York")
             rQ_New <- recentQ[,c("site_no", "dateTime", "X_00065_00000")]
@@ -71,14 +68,14 @@ shinyServer(function(input, output, session) {
         return(outData)
     })
 
-    ## Take
+    ## Take the data set and calculate metrics of interest
     fData <- reactive({
 
-        ##browser()
+        ## Pull dfs out of list
         rQ <- as.data.frame(useData()[["rQ"]])
         latLon <- as.data.frame(useData()[["latLon"]])
 
-        ## Keep last 12 hours
+        ## Keep last 2 hours
         rQ <- filter(rQ,
                      dateTime>=Sys.time()-(60*60*2))
 
@@ -96,44 +93,44 @@ shinyServer(function(input, output, session) {
 
         ## Rename
         names(r2) <- substring(names(r2), 20, 30)
-        names(r2)[1] <- "SiteCode"
+        names(r2)[1] <- "site_no"
         r3 <- r2[sort(names(r2), decreasing=TRUE)]
-        r3 <- r3[order(r3$SiteCode),]
+        r3 <- r3[order(r3$site_no),]
 
-        SiteNames <- siteCoor$SiteName[order(siteCoor$SiteCode)]
+        SiteNames <- siteCoor$SiteName[order(siteCoor$site_no)]
 
         ## Add on site names
         r4 <- cbind(SiteNames, r3)
 
+        ## Merge lat long
         r5 <- merge(r4, latLon,
-                    by.x="SiteCode", by.y="site_no", all=TRUE)
+                    by.x="site_no", by.y="site_no", all=TRUE)
 
         ## Also merge the "how old is newest data" column
-        r5 <- merge(r5, newestDt, by.x="SiteCode", by.y="site_no", all=TRUE)
-
+        r5 <- merge(r5, newestDt, by.x="site_no", by.y="site_no", all=TRUE)
 
         ## This produces an array with column indexes correpsondig to first numeric
         ## data per site
-        b <- rep(NA,53)
+        firstI <- rep(NA,53)
         for (i in 1:53) {
-            b[i] <- which(names(r5)==format(r5$dateTime[i], format="%m-%d %H:%M"))
+            firstI[i] <- which(names(r5)==format(r5$dateTime[i], format="%m-%d %H:%M"))
         }
 
         ## Change columns
         for (i in 1:53) {
-                    r5$change5[i] <- r5[i,b[i]]-r5[i,b[i]+1]
+                    r5$change5[i] <- r5[i,firstI[i]]-r5[i,firstI[i]+1]
                     r5$change5YN <- rep("Na",53)
                     r5$change5YN[which(r5$change5<0)] <- "Down"
                     r5$change5YN[which(r5$change5==0)] <- "Same"
                     r5$change5YN[which(r5$change5>0)] <- "Up"
 
-                    r5$change15[i] <- r5[i,b[i]]-r5[i,b[i]+3]
+                    r5$change15[i] <- r5[i,firstI[i]]-r5[i,firstI[i]+3]
                     r5$change15YN <- rep("Na",53)
                     r5$change15YN[which(r5$change15<0)] <- "Down"
                     r5$change15YN[which(r5$change15==0)] <- "Same"
                     r5$change15YN[which(r5$change15>0)] <- "Up"
 
-                    r5$change30[i] <- r5[i,b[i]]-r5[i,b[i]+6]
+                    r5$change30[i] <- r5[i,firstI[i]]-r5[i,firstI[i]+6]
                     r5$change30YN <- rep("Na",53)
                     r5$change30YN[which(r5$change30<0)] <- "Down"
                     r5$change30YN[which(r5$change30==0)] <- "Same"
@@ -143,11 +140,14 @@ shinyServer(function(input, output, session) {
         r5$Site <- r5$SiteNames
 
         ## Try adding on the first data column indexes
-        r5$currentI <- b
+        r5$currentI <- firstI
 
-        r5$Graph <- paste0("'<img src='icon", r5$SiteCode,  ".png' height='20'></img>'")
+        ## Site specific graph icon b/c can't find better way....
+        r5$Graph <- paste0("'<img src='icon", r5$site_no,
+                           ".png' height='20'></img>'")
 
-        r5 <- select(r5, Site, Graph, SiteNames, SiteCode,
+        ## Reconfig output
+        r5 <- select(r5, Site, Graph, SiteNames, SiteCode=site_no,
                      "5-Min Change"=change5, "15-Min Change"=change15,
                      "30-Min Change"=change30, change5YN, change15YN, change30YN,
                      "Minutes Since"=def, everything(), latitude=dec_lat_va,
@@ -161,38 +161,41 @@ shinyServer(function(input, output, session) {
     ## Maps
     output$mapy <- renderLeaflet({
 
-        ## This needs to be linked up with actual stage or whatever data....
-        pal <- c('#67001f','#b2182b','#d6604d','#f4a582','#fddbc7','#d1e5f0',
-                 '#92c5de','#4393c3','#2166ac','#053061')
+        ## Color scheme, r/b diverging from color brewer
+        pal <- c('#67001f','#b2182b','#d6604d','#f4a582','#fddbc7',
+                 '#d1e5f0', '#92c5de','#4393c3','#2166ac','#053061')
 
+        ## Pull results df out of fData list
         ds <- fData()[["r5"]]
-        ##browser()
+
+        ## Extract vector of most recent stage at each site
         dd <- rep(NA, 53)
         for (i in 1:53) {
             dd[i] <- ds[i,ds$currentI[i]+9]
         }
 
+        ## This loopy.  To get high values red, and red at top of legend..
+        ## make a palette, then make a reverse palette, then use as in below.
         myPal <- colorNumeric(
             palette = "RdYlBu",
             domain = dd, reverse=FALSE)
 
         myPalR <- colorNumeric(
             palette = "RdYlBu",
-            domain = dd, reverse=TRUE)
+            domain = dd, reverse=TRUE) ## reversed
 
 
         leaflet() %>%
-            ## addProviderTiles(providers$OpenStreetMap.BlackAndWhite, group="Streets") %>% #.Mapnik
-            addProviderTiles(providers$Esri.WorldGrayCanvas, group="Streets") %>% #.Mapnik
-            addCircleMarkers(data=ds, radius=3, color=~myPalR(dd),
+            addProviderTiles(providers$Esri.WorldGrayCanvas, group="Streets") %>%
+            addCircleMarkers(data=ds, radius=3, color=~myPalR(dd), ## use reverse palette
                              fillOpacity=0.75, stroke=FALSE,
                              popup=paste(ds$SiteNames,
                                          br()
                                          )
                              ) %>%
-            addLegend(position = c("topright"), myPal, values=dd, na.label = "NA",
-                      bins = 10, opacity = 0.7, labels = NULL,
-                      className = "info legend",
+            addLegend(position = c("topright"), opacity = 0.7, myPal, ## use regular palette
+                      values=dd, na.label = "NA", bins = 10,
+                      labels = NULL, className = "info legend",
                       layerId = NULL, group = NULL,
                       labFormat = labelFormat(transform = function(x) sort(x, decreasing = TRUE)),
                       title="Gage Height (ft)"
@@ -330,9 +333,17 @@ shinyServer(function(input, output, session) {
                 mm <- plot_ly(data=ds, x=~dateTime) %>%
                     add_lines(y=~X_00065_00000,
                               name=plotSite) %>%
-                    add_lines(x=c(min(ds$dateTime), max(ds$dateTime)), y=rep(hData[2,2]*4,2),
-                              name="Fake Flood Stage") %>%
-                    add_lines(x=hData$dtSeq, y=hData[,2], name="LT Average") %>%
+                    add_trace(x=c(min(ds$dateTime), max(ds$dateTime)),
+                              y=rep(siteCoor$floodHeight[which(siteCoor$site_no==plotSite)],2),
+                              name="Fake Flood Stage", type="scatter", mode="lines",
+                              line=list(color="red")) %>%
+                    ## add_lines(x=c(min(ds$dateTime), max(ds$dateTime)), y=rep(hData[2,2]*4,2),
+                    ##           name="Fake Flood Stage",
+                    ##           line=list(color="red")) %>%
+                    ## add_lines(x=hData$dtSeq, y=hData[,2], name="LT Average") %>%
+                    add_trace(x=hData$dtSeq, y=hData[,2], name="LT Daily Avg.",
+                              type="scatter", mode="markers",
+                              marker=list(symbol="triangle-up-open", color="green", size=7)) %>%
 
                     layout(
                         title=paste(plotSite, siteCoor$SiteName[which(siteCoor$SiteCode==plotSite)]),
