@@ -15,7 +15,7 @@ shinyServer(function(input, output, session) {
 
         ## Pars
         QParameterCd <- "00065" ## stage, feet
-        startTime <- as.Date(format(Sys.time(), tz="America/Panama"))-input$dSlide
+        startTime <- as.Date(format(Sys.time(), tz="America/Panama"))-input$dNum
 
         ## Pull most recent data
         recentQ <- readNWISuv(siteNumbers=siteCoor$site_no,
@@ -83,7 +83,7 @@ shinyServer(function(input, output, session) {
         newestDt <- rQ %>%
             group_by(site_no) %>%
             filter(dateTime == max(dateTime)) %>%
-            select(site_no, dateTime) %>%
+            dplyr::select(site_no, dateTime) %>%
             mutate(def=difftime(Sys.time(), dateTime, units="min")) %>%
             as.data.frame()
 
@@ -97,10 +97,12 @@ shinyServer(function(input, output, session) {
         r3 <- r2[sort(names(r2), decreasing=TRUE)]
         r3 <- r3[order(r3$site_no),]
 
-        SiteNames <- siteCoor$SiteName[order(siteCoor$site_no)]
+        ## SiteNames <- siteCoor$SiteName[order(siteCoor$site_no)]
+        SiteNamesAndFlooding <- siteCoor[order(siteCoor$site_no),
+                                         c("SiteName", "floodHeight")]
 
         ## Add on site names
-        r4 <- cbind(SiteNames, r3)
+        r4 <- cbind(SiteNamesAndFlooding, r3)
 
         ## Merge lat long
         r5 <- merge(r4, latLon,
@@ -116,28 +118,45 @@ shinyServer(function(input, output, session) {
             firstI[i] <- which(names(r5)==format(r5$dateTime[i], format="%m-%d %H:%M"))
         }
 
-        ## Change columns
+        ## Add on current days histortical flow depth, calc frac
+        hToday <- dplyr::select(histFlowTab, site_no, todaysLow=names(histFlowTab)[
+                                                   which(grepl(as.Date(format(Sys.time(),
+                                                                              tz="America/Panama")),
+                                                               names(histFlowTab))
+                                                         )
+                                               ]
+                         )
+
+
+        r5 <- merge(r5, hToday, by="site_no", all=TRUE)
+
+        ## Initialize the current reading dependent columns
+        r5$change5YN <- rep("Na",53)
+        r5$change15YN <- rep("Na",53)
+        r5$change30YN <- rep("Na",53)
+        r5$floodDefecit <- rep(NA,53)
+
+        ## Calculate the dependent columns
         for (i in 1:53) {
-                    r5$change5[i] <- r5[i,firstI[i]]-r5[i,firstI[i]+1]
-                    r5$change5YN <- rep("Na",53)
-                    r5$change5YN[which(r5$change5<0)] <- "Down"
-                    r5$change5YN[which(r5$change5==0)] <- "Same"
-                    r5$change5YN[which(r5$change5>0)] <- "Up"
-
-                    r5$change15[i] <- r5[i,firstI[i]]-r5[i,firstI[i]+3]
-                    r5$change15YN <- rep("Na",53)
-                    r5$change15YN[which(r5$change15<0)] <- "Down"
-                    r5$change15YN[which(r5$change15==0)] <- "Same"
-                    r5$change15YN[which(r5$change15>0)] <- "Up"
-
-                    r5$change30[i] <- r5[i,firstI[i]]-r5[i,firstI[i]+6]
-                    r5$change30YN <- rep("Na",53)
-                    r5$change30YN[which(r5$change30<0)] <- "Down"
-                    r5$change30YN[which(r5$change30==0)] <- "Same"
-                    r5$change30YN[which(r5$change30>0)] <- "Up"
+            r5$change5[i] <- r5[i,firstI[i]]-r5[i,firstI[i]+1]
+            r5$change15[i] <- r5[i,firstI[i]]-r5[i,firstI[i]+3]
+            r5$change30[i] <- r5[i,firstI[i]]-r5[i,firstI[i]+6]
+            r5$floodDefecit[i] <- r5$floodHeight[i]-r5[i,firstI[i]]
+            r5$frac[i] <- (r5[i,firstI[i]]-r5$todaysLow[i])/(r5$floodHeight[i]-r5$todaysLow[i])
         }
 
-        r5$Site <- r5$SiteNames
+        ## Classify the current dependent columns
+        r5$change5YN[which(r5$change5<0)] <- "Down"
+        r5$change5YN[which(r5$change5==0)] <- "Same"
+        r5$change5YN[which(r5$change5>0)] <- "Up"
+        r5$change15YN[which(r5$change15<0)] <- "Down"
+        r5$change15YN[which(r5$change15==0)] <- "Same"
+        r5$change15YN[which(r5$change15>0)] <- "Up"
+        r5$change30YN[which(r5$change30<0)] <- "Down"
+        r5$change30YN[which(r5$change30==0)] <- "Same"
+        r5$change30YN[which(r5$change30>0)] <- "Up"
+
+        r5$Site <- r5$SiteName
 
         ## Try adding on the first data column indexes
         r5$currentI <- firstI
@@ -147,11 +166,12 @@ shinyServer(function(input, output, session) {
                            ".png' height='20'></img>'")
 
         ## Reconfig output
-        r5 <- select(r5, Site, Graph, SiteNames, SiteCode=site_no,
+        r5 <- dplyr::select(r5, Site, Graph, SiteName, SiteCode=site_no,
                      "5-Min Change"=change5, "15-Min Change"=change15,
                      "30-Min Change"=change30, change5YN, change15YN, change30YN,
-                     "Minutes Since"=def, everything(), latitude=dec_lat_va,
-                      longitude=dec_lon_va, currentI)
+                     "Minutes Since"=def, "Below Flood Stage"=floodDefecit,
+                     everything(), floodHeight, latitude=dec_lat_va,
+                     longitude=dec_lon_va, currentI)
 
         return(list(r5=r5))
     })
@@ -168,44 +188,101 @@ shinyServer(function(input, output, session) {
         ## Pull results df out of fData list
         ds <- fData()[["r5"]]
 
-        ## Extract vector of most recent stage at each site
-        dd <- rep(NA, 53)
-        for (i in 1:53) {
-            dd[i] <- ds[i,ds$currentI[i]+9]
+        if (input$mapDef=="Stage") {
+
+            ## Extract vector of most recent stage at each site
+            stg <- rep(NA, 53)
+            for (i in 1:53) {
+                stg[i] <- ds[i,ds$currentI[i]+10]
+            }
+
+            ## This loopy.  To get high values red, and red at top of legend..
+            ## make a palette, then make a reverse palette, then use as in below.
+            myPal <- colorNumeric(
+                palette = "RdYlBu",
+                domain = stg, reverse=FALSE)
+
+            myPalR <- colorNumeric(
+                palette = "RdYlBu",
+                domain = stg, reverse=TRUE) ## reversed
+
+
+            leaflet() %>%
+                addProviderTiles(providers$Esri.WorldGrayCanvas, group="Streets") %>%
+                addCircleMarkers(data=ds, radius=3, color=~myPalR(stg), ## use reverse palette
+                                 fillOpacity=0.75, stroke=FALSE,
+                                 popup=paste(ds$SiteName,
+                                             br()
+                                             )
+                                 ) %>%
+                addLegend(position = c("topright"), opacity = 0.7, myPal, ## use regular palette
+                          values=stg, na.label = "NA", bins = 10,
+                          labels = NULL, className = "info legend",
+                          layerId = NULL, group = NULL,
+                          labFormat = labelFormat(transform = function(x) sort(x, decreasing = TRUE)),
+                          title="Gage Height (ft)"
+                          ) %>%
+                fitBounds(lng1=min(ds$longitude),
+                          lng2=max(ds$longitude),
+                          lat1=min(ds$latitude),
+                          lat2=max(ds$latitude)
+                          )
+
+        } else {
+            ## Extract vector of most recent stage at each site
+            frac <- rep(NA, 53)
+            for (i in 1:53) {
+                frac[i] <- ds$frac[i]
+            }
+
+            ## This loopy.  To get high values red, and red at top of legend..
+            ## make a palette, then make a reverse palette, then use as in below.
+            myPal <- colorNumeric(
+                palette = "RdYlBu",
+                domain = c(0,1), reverse=FALSE)
+
+            myPalR <- colorNumeric(
+                palette = "RdYlBu",
+                domain = c(0,1), reverse=TRUE) ## reversed
+
+
+            makeMap <- leaflet() %>%
+                addProviderTiles(providers$Esri.WorldGrayCanvas, group="Streets") %>%
+                addCircleMarkers(data=ds, radius=3, color=~myPalR(frac), ## use reverse palette
+                                 fillOpacity=0.75, stroke=FALSE,
+                                 popup=paste(ds$SiteName,
+                                             br()
+                                             )
+                                 ) %>%
+                addLegend(position = c("topright"), opacity = 0.7, myPal, ## use regular palette
+                          values=seq(0,1,.10), na.label = "NA", bins = 10,
+                          labels = NULL, className = "info legend",
+                          layerId = NULL, group = NULL,
+                          labFormat = labelFormat(transform = function(x) sort(x, decreasing = TRUE)),
+                          title="Fraction"
+                          ) %>%
+                fitBounds(lng1=min(ds$longitude),
+                          lng2=max(ds$longitude),
+                          lat1=min(ds$latitude),
+                          lat2=max(ds$latitude)
+                          )
+            ## browser()
+
+            if (max(ds$frac, na.rm=TRUE)==1) {
+                dsExtra <- filter(ds, ds$frac>=1)
+
+                makeMap <- leaflet() %>%
+                    addCircleMarkers(map=makeMap,
+                                     lat=dsExtra$latitude,
+                                     lng=dsExtra$longitude,
+                                     radius=6, color="red")
+            }
+
+            makeMap
         }
 
-        ## This loopy.  To get high values red, and red at top of legend..
-        ## make a palette, then make a reverse palette, then use as in below.
-        myPal <- colorNumeric(
-            palette = "RdYlBu",
-            domain = dd, reverse=FALSE)
-
-        myPalR <- colorNumeric(
-            palette = "RdYlBu",
-            domain = dd, reverse=TRUE) ## reversed
 
 
-        leaflet() %>%
-            addProviderTiles(providers$Esri.WorldGrayCanvas, group="Streets") %>%
-            addCircleMarkers(data=ds, radius=3, color=~myPalR(dd), ## use reverse palette
-                             fillOpacity=0.75, stroke=FALSE,
-                             popup=paste(ds$SiteNames,
-                                         br()
-                                         )
-                             ) %>%
-            addLegend(position = c("topright"), opacity = 0.7, myPal, ## use regular palette
-                      values=dd, na.label = "NA", bins = 10,
-                      labels = NULL, className = "info legend",
-                      layerId = NULL, group = NULL,
-                      labFormat = labelFormat(transform = function(x) sort(x, decreasing = TRUE)),
-                      title="Gage Height (ft)"
-                      ) %>%
-
-              fitBounds(lng1=min(ds$longitude),
-                      lng2=max(ds$longitude),
-                      lat1=min(ds$latitude),
-                      lat2=max(ds$latitude)
-                      )
 
     })
 
@@ -228,8 +305,11 @@ shinyServer(function(input, output, session) {
                 addCircleMarkers(radius=5, color="red",
                     popup=paste(prev_row()$SiteNames,
                                br(), fillOpacity=0,
-                               paste0("<a href='",
-                                      siteCoor$usgsLink[which(siteCoor$SiteName==prev_row()$SiteNames)],
+                               paste0("Current Reading: ", prev_row()[prev_row()$currentI+10],
+                                      br(),
+                                      "From: ", prev_row()$dateTime, br(),
+                                      "<a href='",
+                                      siteCoor$usgsLink[which(siteCoor$SiteName==prev_row()$SiteName)],
                                       "'>USGS</a>"),
                                "(Right click to open in new window)"),
                     layerId = "Selected Site",
@@ -284,7 +364,9 @@ shinyServer(function(input, output, session) {
             formatRound('30-Min Change', 2) %>%
             formatRound('15-Min Change', 2) %>%
             formatRound('5-Min Change', 2) %>%
-            formatRound('Minutes Since',1)
+            formatRound('Minutes Since',1) %>%
+            formatRound('floodHeight',1) %>%
+            formatRound('Below Flood Stage', 1)
 
     })
 
@@ -327,7 +409,7 @@ shinyServer(function(input, output, session) {
             ## Subset historical daily flows
             hData <- histDaily %>%
                 filter(dates %in% as.Date(ds$dateTime, tz="America/New_York")) %>%
-                select(dtSeq, names(histDaily)[which(grepl(plotSite, names(histDaily)))])
+                dplyr::select(dtSeq, names(histDaily)[which(grepl(plotSite, names(histDaily)))])
 
             output$graphs <- renderPlotly({
                 mm <- plot_ly(data=ds, x=~dateTime) %>%
@@ -337,14 +419,9 @@ shinyServer(function(input, output, session) {
                               y=rep(siteCoor$floodHeight[which(siteCoor$site_no==plotSite)],2),
                               name="Fake Flood Stage", type="scatter", mode="lines",
                               line=list(color="red")) %>%
-                    ## add_lines(x=c(min(ds$dateTime), max(ds$dateTime)), y=rep(hData[2,2]*4,2),
-                    ##           name="Fake Flood Stage",
-                    ##           line=list(color="red")) %>%
-                    ## add_lines(x=hData$dtSeq, y=hData[,2], name="LT Average") %>%
                     add_trace(x=hData$dtSeq, y=hData[,2], name="LT Daily Avg.",
                               type="scatter", mode="markers",
                               marker=list(symbol="triangle-up-open", color="green", size=7)) %>%
-
                     layout(
                         title=paste(plotSite, siteCoor$SiteName[which(siteCoor$SiteCode==plotSite)]),
                         xaxis = list(
