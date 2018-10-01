@@ -19,14 +19,22 @@ nn <- nn[,c(2,11,12)]
 
 
 ## Bingo...
-n3 <- reshape(nn,
+siteCol <- reshape(nn,
               v.names="mean_va",
               idvar="dateThing",
               direction="wide",
               timevar="site_no")
 
+dateCol <- reshape(nn,
+              v.names="mean_va",
+              idvar="site_no",
+              direction="wide",
+              timevar="dateThing")
+
+histStuff <- list(siteCol=siteCol, dateCol=dateCol)
+
 ## Save to rds
-saveRDS(n3, file="stageTrack/histDailyFlow.rds")
+saveRDS(histStuff, file="stageTrack/histDailyFlow.rds")
 
 ## Load rds into stage tracker app
 
@@ -38,15 +46,17 @@ saveRDS(n3, file="stageTrack/histDailyFlow.rds")
 rm(list=ls())
 histDaily <- readRDS("stageTrack/histDailyFlow.rds")
 
+histDaily.bySite <- histDaily[["siteCol"]]
+histDaily.byDate <- histDaily[["dateCol"]]
 
 st <- st <- as.POSIXct("2018-01-01 11:00", tz="America/Panama")
 dtSeq <- c(st + cumsum(c(0,rep(c(7200,3600,21*3600),365),100)))[1:1095]
 dateSeq <- data.frame(dates=as.Date(dtSeq))
 
 ## merge the flow stats with the repetitive dates
-bb <- merge(dateSeq, histDaily, by.x="dates", by.y="dateThing")
+bb <- merge(dateSeq, histDaily.bySite, by.x="dates", by.y="dateThing")
 
-## take posix dts on
+## tack posix dts on
 cc <- cbind(bb, dtSeq)
 
 ## NA out 14:00 readings
@@ -58,7 +68,7 @@ dd <- cc[seq(1,1095,3),]
 dd$dtSeq <- dd$dtSeq+3600
 saveRDS(dd, file="stageTrack/histDailyFlow_FormattedPoints.rds")
 
+saveRDS(histDaily.byDate, file="stageTrack/histFlowTable.rds")
 
-## df 'cc' looks ready to go.  In plotly, id the column of data for selected site,
-##  identify the row range for current plot, add lines
+
 
