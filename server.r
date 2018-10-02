@@ -127,7 +127,6 @@ shinyServer(function(input, output, session) {
                                                ]
                          )
 
-
         r5 <- merge(r5, hToday, by="site_no", all=TRUE)
 
         ## Initialize the current reading dependent columns
@@ -167,11 +166,10 @@ shinyServer(function(input, output, session) {
 
         ## Reconfig output
         r5 <- dplyr::select(r5, Site, Graph, SiteName, SiteCode=site_no,
-                     "5-Min Change"=change5, "15-Min Change"=change15,
-                     "30-Min Change"=change30, change5YN, change15YN, change30YN,
-                     "Minutes Since"=def, "Below Flood Stage"=floodDefecit,
+                     "Flood Fraction"=frac, "5-Min Change"=change5, "15-Min Change"=change15,
+                     "30-Min Change"=change30, "Minutes Since"=def, "Below Flood Stage"=floodDefecit,
                      everything(), floodHeight, latitude=dec_lat_va,
-                     longitude=dec_lon_va, currentI)
+                     longitude=dec_lon_va, currentI,change5YN, change15YN, change30YN)
 
         return(list(r5=r5))
     })
@@ -193,7 +191,7 @@ shinyServer(function(input, output, session) {
             ## Extract vector of most recent stage at each site
             stg <- rep(NA, 53)
             for (i in 1:53) {
-                stg[i] <- ds[i,ds$currentI[i]+10]
+                stg[i] <- ds[i,ds$currentI[i]+11]
             }
 
             ## This loopy.  To get high values red, and red at top of legend..
@@ -230,9 +228,10 @@ shinyServer(function(input, output, session) {
 
         } else {
             ## Extract vector of most recent stage at each site
+
             frac <- rep(NA, 53)
             for (i in 1:53) {
-                frac[i] <- ds$frac[i]
+                frac[i] <- ds[i, "Flood Fraction"]
             }
 
             ## This loopy.  To get high values red, and red at top of legend..
@@ -268,8 +267,8 @@ shinyServer(function(input, output, session) {
                           )
             ## browser()
 
-            if (max(ds$frac, na.rm=TRUE)==1) {
-                dsExtra <- filter(ds, ds$frac>=1)
+            if (max(ds[,"Flood Fraction"], na.rm=TRUE)==1) {
+                dsExtra <- filter(ds, ds[,"Flood Fraction"]>=1)
 
                 makeMap <- leaflet() %>%
                     addCircleMarkers(map=makeMap,
@@ -280,10 +279,6 @@ shinyServer(function(input, output, session) {
 
             makeMap
         }
-
-
-
-
     })
 
     ## Previuos row holder
@@ -305,7 +300,7 @@ shinyServer(function(input, output, session) {
                 addCircleMarkers(radius=5, color="red",
                     popup=paste(prev_row()$SiteNames,
                                br(), fillOpacity=0,
-                               paste0("Current Reading: ", prev_row()[prev_row()$currentI+10],
+                               paste0("Current Reading: ", prev_row()[prev_row()$currentI+11],
                                       br(),
                                       "From: ", prev_row()$dateTime, br(),
                                       "<a href='",
@@ -324,22 +319,30 @@ shinyServer(function(input, output, session) {
     ## Table
     output$x1 = DT::renderDataTable({
         datatable(data=as.data.frame(fData()[["r5"]]),
+                  extensions = 'FixedHeader',
                   rownames=FALSE,
                   escape=FALSE,
                   selection = "single",
                   options = list(pageLength = 60,
                                  stateSave = TRUE,
                                  dom = 't',
+                                 fixedHeader='TRUE',
                                  escape=TRUE,
                                  autoWidth = TRUE,
                                  scrollX=TRUE,
                                  columnDefs = list(
-                                     list(visible=FALSE, targets = c(0,3,7:9,34:36)),
+                                     list(visible=FALSE, targets = c(0,3,35:37)),
                                      list(width = '225px', targets = c(2)),
-                                     list(className='dt-center', targets=c(4:6,10:15))
+                                     list(className='dt-center', targets=c(1,4:9))
                                  )
                                  )
                   ) %>%
+            formatStyle(
+                'Flood Fraction',
+                backgroundColor = styleInterval(c(0.2, 0.4, 0.6, 0.8, 1),
+                                                c('#fef0d9','#fdd49e','#fdbb84','#fc8d59',
+                                                  '#e34a33','#b30000'))
+            ) %>%
             formatStyle(
                 '30-Min Change', 'change30YN',
                 backgroundColor = styleEqual(c('Up', 'Down', 'Niether', 'Na'),
@@ -366,7 +369,8 @@ shinyServer(function(input, output, session) {
             formatRound('5-Min Change', 2) %>%
             formatRound('Minutes Since',1) %>%
             formatRound('floodHeight',1) %>%
-            formatRound('Below Flood Stage', 1)
+            formatRound('Below Flood Stage', 1) %>%
+            formatRound('Flood Fraction', 2)
 
     })
 
@@ -417,7 +421,7 @@ shinyServer(function(input, output, session) {
                               name=plotSite) %>%
                     add_trace(x=c(min(ds$dateTime), max(ds$dateTime)),
                               y=rep(siteCoor$floodHeight[which(siteCoor$site_no==plotSite)],2),
-                              name="Fake Flood Stage", type="scatter", mode="lines",
+                              name="NWS Floodstage", type="scatter", mode="lines",
                               line=list(color="red")) %>%
                     add_trace(x=hData$dtSeq, y=hData[,2], name="LT Daily Avg.",
                               type="scatter", mode="markers",
