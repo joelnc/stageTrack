@@ -65,7 +65,7 @@ cc[seq(3,1095, by=3),2:54] <- NA
 saveRDS(cc, file="stageTrack/histDailyFlow_Formatted.rds")
 
 dd <- cc[seq(1,1095,3),]
-dd$dtSeq <- dd$dtSeq+3600
+dd$dtSeq <- dd$dtSeq-(60*60*5)
 saveRDS(dd, file="stageTrack/histDailyFlow_FormattedPoints.rds")
 
 saveRDS(histDaily.byDate, file="stageTrack/histFlowTable.rds")
