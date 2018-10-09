@@ -332,11 +332,24 @@ shinyServer(function(input, output, session) {
                                  autoWidth = TRUE,
                                  scrollX=TRUE,
                                  columnDefs = list(
-                                     list(visible=FALSE, targets = c(0,3,35:37)),
+                                     list(visible=FALSE, targets = c(0,3,10,35:37)),
                                      list(width = '225px', targets = c(2)),
                                      list(className='dt-center', targets=c(1,4:9))
                                  )
-                                 )
+                                 ),
+                  callback=JS("var tips = ['',
+                                           'Click Icon to View Graph', '', '',
+                                           'Value of 1.0 means most current reading is equal to flood stage.  Value of 0.0 means most current reading is equal to long term average for current date.  Value of 0.50 means current reading is halfway between flood stage and long term average.',
+                                           'Calculated as most recent reading minus second most recent reading.  Positive value indicates rising.',
+                                           'Calculated as most recent reading minus the value 15 minutes prior. ',
+                                           'Calculated as most recent reading minus the value 30 minutes prior.',
+                                           'This is how many minutes old the most recent data are, RELATIVE TO THE LAST TIME DATA WERE FETCHED.',
+                                           'Calculated as site flood elevation minus most recent reading.'],
+                                           header = table.columns().header();
+                                           for (var i = 0; i < tips.length; i++) {
+                                               $(header[i]).attr('title', tips[i]);
+                                           }"
+                              )
                   ) %>%
             formatStyle(
                 'Flood Fraction',
