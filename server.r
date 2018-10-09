@@ -319,6 +319,7 @@ shinyServer(function(input, output, session) {
     ## Table
     output$x1 = DT::renderDataTable({
         datatable(data=as.data.frame(fData()[["r5"]]),
+                  class='compact',
                   extensions = 'FixedHeader',
                   rownames=FALSE,
                   escape=FALSE,
