@@ -166,10 +166,17 @@ shinyServer(function(input, output, session) {
 
         ## Reconfig output
         r5 <- dplyr::select(r5, Site, Graph, SiteName, SiteCode=site_no,
-                     "Flood Fraction"=frac, "5-Min Change"=change5, "15-Min Change"=change15,
-                     "30-Min Change"=change30, "Minutes Since"=def, "Below Flood Stage"=floodDefecit,
-                     everything(), floodHeight, latitude=dec_lat_va,
-                     longitude=dec_lon_va, currentI,change5YN, change15YN, change30YN)
+                            "Flood Fraction"=frac, "Below Flood Stage"=floodDefecit,
+                            "Minutes Since"=def,
+                            "5-Min Change"=change5, "15-Min Change"=change15, "30-Min Change"=change30,
+                            everything(), floodHeight, latitude=dec_lat_va,
+                            longitude=dec_lon_va, currentI,change5YN, change15YN, change30YN)
+
+        ## r5 <- dplyr::select(r5, Site, Graph, SiteName, SiteCode=site_no,
+        ##              "Flood Fraction"=frac, "5-Min Change"=change5, "15-Min Change"=change15,
+        ##              "30-Min Change"=change30, "Minutes Since"=def, "Below Flood Stage"=floodDefecit,
+        ##              everything(), floodHeight, latitude=dec_lat_va,
+        ##              longitude=dec_lon_va, currentI,change5YN, change15YN, change30YN)
 
         return(list(r5=r5))
     })
@@ -633,11 +640,12 @@ shinyServer(function(input, output, session) {
                   callback=JS("var tips = ['',
                                            'Click Icon to View Graph', '', '',
                                            'Value of 1.0 means most current reading is equal to flood stage.  Value of 0.0 means most current reading is equal to long term average for current date.  Value of 0.50 means current reading is halfway between flood stage and long term average.',
+                                           'Calculated as site flood elevation minus most recent reading.',
+                                           'This is how many minutes old the most recent data are, RELATIVE TO THE LAST TIME DATA WERE FETCHED.',
                                            'Calculated as most recent reading minus second most recent reading.  Positive value indicates rising.',
                                            'Calculated as most recent reading minus the value 15 minutes prior. ',
-                                           'Calculated as most recent reading minus the value 30 minutes prior.',
-                                           'This is how many minutes old the most recent data are, RELATIVE TO THE LAST TIME DATA WERE FETCHED.',
-                                           'Calculated as site flood elevation minus most recent reading.'],
+                                           'Calculated as most recent reading minus the value 30 minutes prior.'
+                                           ],
                                            header = table.columns().header();
                                            for (var i = 0; i < tips.length; i++) {
                                                $(header[i]).attr('title', tips[i]);
@@ -651,25 +659,40 @@ shinyServer(function(input, output, session) {
                                                   '#e34a33','#b30000'))
             ) %>%
             formatStyle(
-                '30-Min Change', 'change30YN',
-                backgroundColor = styleEqual(c('Up', 'Down', 'Niether', 'Na'),
-                                             c('#ef6548', '#addd8e',NA,NA)),
-                fontWeight = styleEqual(c('Up', 'Down', 'Niether', 'Na'),
-                                             c('bold', 'bold',NA,NA))
+                'Below Flood Stage',
+                backgroundColor = styleInterval(c(0, 2, 4, 6, 8),
+                                                c('#b30000', '#e34a33', '#fc8d59', '#fdbb84',
+                                                  '#fdd49e','#fef0d9'))
             ) %>%
             formatStyle(
-                '15-Min Change', 'change15YN',
-                backgroundColor = styleEqual(c('Up', 'Down', 'Niether', 'Na'),
-                                             c('#ef6548', '#addd8e',NA,NA)),
-                fontWeight = styleEqual(c('Up', 'Down', 'Niether', 'Na'),
-                                             c('bold', 'bold',NA,NA))
+                '30-Min Change',
+                backgroundColor = styleInterval(c(-2, -1.5, -1, -.5,
+                                                  -.1, .1,
+                                                  .5, 1, 1.5, 2),
+                                                c('#006d2c','#31a354','#74c476','#bae4b3','#edf8e9',
+                                                  NA,
+                                                  '#fee5d9','#fcbba1','#fc9272','#fb6a4a','#ef3b2c')
+                                                )
             ) %>%
             formatStyle(
-                '5-Min Change', 'change5YN',
-                backgroundColor = styleEqual(c('Up', 'Down', 'Niether', 'Na'),
-                                             c('#ef6548', '#addd8e',NA,NA)),
-                fontWeight = styleEqual(c('Up', 'Down', 'Niether', 'Na'),
-                                             c('bold', 'bold',NA,NA))
+                '15-Min Change',
+                backgroundColor = styleInterval(c(-1.5, -1.125, -.75, -.375,
+                                                  -.1, .1,
+                                                  .375, .75, 1.125, 1.5),
+                                                c('#006d2c','#31a354','#74c476','#bae4b3','#edf8e9',
+                                                  NA,
+                                                  '#fee5d9','#fcbba1','#fc9272','#fb6a4a','#ef3b2c')
+                                                )
+            ) %>%
+                        formatStyle(
+                '5-Min Change',
+                backgroundColor = styleInterval(c(-1, -0.75, -0.5, -0.25,
+                                                  -.05, .05,
+                                                  0.25, 0.5, 0.75, 1),
+                                                c('#006d2c','#31a354','#74c476','#bae4b3','#edf8e9',
+                                                  NA,
+                                                  '#fee5d9','#fcbba1','#fc9272','#fb6a4a','#ef3b2c')
+                                                )
             ) %>%
             formatRound('30-Min Change', 2) %>%
             formatRound('15-Min Change', 2) %>%
