@@ -256,7 +256,7 @@ shinyServer(function(input, output, session) {
 
             makeMap <- leaflet() %>%
                 addProviderTiles(providers$Esri.WorldGrayCanvas, group="Streets") %>%
-                addCircleMarkers(data=ds, layerId=ds$SiteName, radius=3,
+                addCircleMarkers(data=ds, layerId=ds$SiteCode, radius=3,
                                  color=~myPalR(frac), ## use reverse palette
                                  fillOpacity=0.75, stroke=FALSE#,
                                  ## popup=paste(ds$SiteName,
@@ -276,7 +276,7 @@ shinyServer(function(input, output, session) {
                           lat2=max(ds$latitude)
                           )
 
-            if (max(ds[,"Flood Fraction"], na.rm=TRUE)==1) {
+            if (max(ds[,"Flood Fraction"], na.rm=TRUE)>=1) {
                 dsExtra <- filter(ds, ds[,"Flood Fraction"]>=1)
 
                 makeMap <- leaflet() %>%
@@ -313,20 +313,22 @@ shinyServer(function(input, output, session) {
 
 
 
-    observeEvent(input$mapyX_marker_clicked, {
+    observeEvent(input$mapyX_marker_click, {
 
-        infoX <- input$mapyX_marker_clicked
+        infoX <- input$mapyX_marker_click
 
-        print(infoX)
+        ##print(infoX)
 
         if (is.null(infoX$id)) {
             return()
-        } else if (!is.null(info$id)){
+        } else if (!is.null(infoX$id)){
             tic("click graph map")
 
-            plotSite <- substr(gsub(".*on(.*)","\\1", info$id),
-                               1, nchar(gsub(".*on(.*)","\\1", info$id))-25)
+            ## plotSite <- substr(gsub(".*on(.*)","\\1", infoX$id),
+            ##                    1, nchar(gsub(".*on(.*)","\\1", infoX$id))-25)
+            plotSite <- infoX$id
 
+            #browser()
             ds <- useData()[["list1"]][[plotSite]]
 
             ## Subset historical daily flows
@@ -382,35 +384,35 @@ shinyServer(function(input, output, session) {
 
 
     ## previuos row holder
-    prev_rowX <- reactiveVal()
+    ## prev_rowX <- reactiveVal()
 
-    observeEvent(input$x1X_rows_selected, {
-        row_selected = as.data.frame(fData()[["r5"]])[input$x1X_rows_selected,]
+    ## observeEvent(input$x1X_rows_selected, {
+    ##     row_selected = as.data.frame(fData()[["r5"]])[input$x1X_rows_selected,]
 
-        ## set new value to reactiveval
-        prev_rowX(row_selected)
+    ##     ## set new value to reactiveval
+    ##     prev_rowX(row_selected)
 
-        proxy <- leafletProxy('mapyX')
+    ##     proxy <- leafletProxy('mapyX')
 
-        ## reset previously selected marker
-        if(!is.null(prev_row()))
-        {
-            proxy %>%
-                addCircleMarkers(radius=5, color="red",
-                    popup=paste(prev_rowX()$sitenames,
-                               br(), fillOpacity=0,
-                               paste0("current reading: ", prev_rowX()[prev_rowX()$currenti+11],
-                                      br(),
-                                      "from: ", prev_rowX()$datetime, br(),
-                                      "<a href='",
-                                      sitecoor$usgslink[which(sitecoor$sitename==prev_rowX()$sitename)],
-                                      "'>usgs</a>"),
-                               "(right click to open in new window)"),
-                    layerid = "selected site",
-                    lng=prev_rowX()$longitude,
-                    lat=prev_rowX()$latitude)
-        }
-    })
+    ##     ## reset previously selected marker
+    ##     if(!is.null(prev_row()))
+    ##     {
+    ##         proxy %>%
+    ##             addCircleMarkers(radius=5, color="red",
+    ##                 popup=paste(prev_rowX()$sitenames,
+    ##                            br(), fillOpacity=0,
+    ##                            paste0("current reading: ", prev_rowX()[prev_rowX()$currenti+11],
+    ##                                   br(),
+    ##                                   "from: ", prev_rowX()$datetime, br(),
+    ##                                   "<a href='",
+    ##                                   sitecoor$usgslink[which(sitecoor$sitename==prev_rowX()$sitename)],
+    ##                                   "'>usgs</a>"),
+    ##                            "(right click to open in new window)"),
+    ##                 layerid = "selected site",
+    ##                 lng=prev_rowX()$longitude,
+    ##                 lat=prev_rowX()$latitude)
+    ##     }
+    ## })
 
 
     ######################################################################
@@ -651,7 +653,7 @@ shinyServer(function(input, output, session) {
                           )
             ## browser()
 
-            if (max(ds[,"Flood Fraction"], na.rm=TRUE)==1) {
+            if (max(ds[,"Flood Fraction"], na.rm=TRUE)>=1) {
                 dsExtra <- filter(ds, ds[,"Flood Fraction"]>=1)
 
                 makeMap <- leaflet() %>%
