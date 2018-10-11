@@ -12,42 +12,6 @@ histFlowTab <<- readRDS("histFlowTable.rds")
 navbarPage(
     title = 'Stage Tracker',
     id = 'x0',
-    tabPanel('Map Interactive',
-             fluidRow(
-                 column(3,
-                        wellPanel(
-                            h4("Initialize", font="bold"),
-                            ## sliderInput("dSlide","Days Prior", min=0, max=21, value=1),
-                            numericInput("dNumX","Days Prior", min=0, max=21, value=0),
-                            HTML('<button data-toggle="collapse" data-target="#demo2X" class="button" style="horizontal-align:middle"><span><b>About</b></span></button>'),
-                            tags$div(id = 'demo2',  class="collapse",
-                                     h6("Graphs embedded in ...."),
-                                     br(),
-                                     h6("NOTE:  To increment by m...")
-                                     ),
-                            hr(),
-                            h4("Get Most Recent Data"),
-                            actionButton("updDataX", "Refresh"),
-                            hr(),
-                            h4("Map Options"),
-                            radioButtons(inputId="mapDefX",
-                                         label="Map Flood Frac.",
-                                         choices=c("Flood Fraction", "Stage")),
-                            HTML('<button data-toggle="collapse" data-target="#demo3X" class="button" style="horizontal-align:middle"><span><b>About</b></span></button>'),
-                            tags$div(id = 'demo3X',  class="collapse",
-                                     h6("Flood Fr......"),
-                                     br(),
-                                     h6("Stage will .....")
-                                     )
-                        )
-                        ),
-                 column(9,
-                        h3("Most Recent Conditions", align="center"),
-                        leafletOutput("mapyX")
-                        )
-             ),
-             hr(),
-             DT::dataTableOutput('x1X')),
     tabPanel('Tabular',
              includeCSS("styles.css"),
              fluidRow(

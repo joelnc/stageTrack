@@ -20,7 +20,7 @@ navbarPage(
                             ## sliderInput("dSlide","Days Prior", min=0, max=21, value=1),
                             numericInput("dNumX","Days Prior", min=0, max=21, value=0),
                             HTML('<button data-toggle="collapse" data-target="#demo2X" class="button" style="horizontal-align:middle"><span><b>About</b></span></button>'),
-                            tags$div(id = 'demo2',  class="collapse",
+                            tags$div(id = 'demo2X',  class="collapse",
                                      h6("Graphs embedded in ...."),
                                      br(),
                                      h6("NOTE:  To increment by m...")
@@ -48,7 +48,6 @@ navbarPage(
              ),
              hr(),
              DT::dataTableOutput('x1X')),
-
     tabPanel('Tabular',
              includeCSS("styles.css"),
              fluidRow(
