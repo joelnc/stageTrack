@@ -48,6 +48,7 @@ navbarPage(
              ),
              hr(),
              DT::dataTableOutput('x1X')),
+
     tabPanel('Tabular',
              includeCSS("styles.css"),
              fluidRow(

@@ -77,7 +77,7 @@ shinyServer(function(input, output, session) {
 
         ## Keep last 2 hours
         rQ <- filter(rQ,
-                     dateTime>=Sys.time()-(60*60*2))
+                     dateTime>=Sys.time()-(60*60*4))
 
         ## Pull out newest data dateTime for each site
         newestDt <- rQ %>%
@@ -195,6 +195,7 @@ shinyServer(function(input, output, session) {
         ## Pull results df out of fData list
         ds <- fData()[["r5"]]
 
+        str(ds)
         if (input$mapDefX=="Stage") {
 
             ## Extract vector of most recent stage at each site
@@ -217,10 +218,9 @@ shinyServer(function(input, output, session) {
             leaflet() %>%
                 addProviderTiles(providers$Esri.WorldGrayCanvas, group="Streets") %>%
                 addCircleMarkers(data=ds, radius=3, color=~myPalR(stg), ## use reverse palette
-                                 fillOpacity=0.75, stroke=FALSE,
-                                 popup=paste(ds$SiteName,
-                                             br()
-                                             )
+                                 fillOpacity=0.75, stroke=FALSE#,
+                                 ##popup=paste(ds$SiteName,
+                                   ##          br()
                                  ) %>%
                 addLegend(position = c("topright"), opacity = 0.7, myPal, ## use regular palette
                           values=stg, na.label = "NA", bins = 10,
@@ -256,11 +256,12 @@ shinyServer(function(input, output, session) {
 
             makeMap <- leaflet() %>%
                 addProviderTiles(providers$Esri.WorldGrayCanvas, group="Streets") %>%
-                addCircleMarkers(data=ds, radius=3, color=~myPalR(frac), ## use reverse palette
-                                 fillOpacity=0.75, stroke=FALSE,
-                                 popup=paste(ds$SiteName,
-                                             br()
-                                             )
+                addCircleMarkers(data=ds, layerId=ds$SiteName, radius=3,
+                                 color=~myPalR(frac), ## use reverse palette
+                                 fillOpacity=0.75, stroke=FALSE#,
+                                 ## popup=paste(ds$SiteName,
+                                 ##             br()
+                                 ##             )
                                  ) %>%
                 addLegend(position = c("topright"), opacity = 0.7, myPal, ## use regular palette
                           values=seq(0,1,.10), na.label = "NA", bins = 10,
@@ -274,7 +275,6 @@ shinyServer(function(input, output, session) {
                           lat1=min(ds$latitude),
                           lat2=max(ds$latitude)
                           )
-            ## browser()
 
             if (max(ds[,"Flood Fraction"], na.rm=TRUE)==1) {
                 dsExtra <- filter(ds, ds[,"Flood Fraction"]>=1)
@@ -290,69 +290,150 @@ shinyServer(function(input, output, session) {
         }
     })
 
-
+    ## Observe that the map has been clicker
     observeEvent(input$mapyX_marker_click, {
-        browser()
+        idX <- input$mapyX_marker_click$id
 
+        if (is.null(idX)) {
+            return()
+        }
+        else if (!is.null(idX)) {
+            showModal(
+                modalDialog(
+                    plotlyOutput("graphsX"),
+                    easyClose = TRUE,
+                    footer = TRUE,
+                    size = "l"
+                )
+            )
+            print(idX)
+        }
     }
+    )
+
+
+
+    observeEvent(input$mapyX_marker_clicked, {
+
+        infoX <- input$mapyX_marker_clicked
+
+        print(infoX)
+
+        if (is.null(infoX$id)) {
+            return()
+        } else if (!is.null(info$id)){
+            tic("click graph map")
+
+            plotSite <- substr(gsub(".*on(.*)","\\1", info$id),
+                               1, nchar(gsub(".*on(.*)","\\1", info$id))-25)
+
+            ds <- useData()[["list1"]][[plotSite]]
+
+            ## Subset historical daily flows
+            hData <- histDaily %>%
+                filter(dates %in% as.Date(ds$dateTime, tz="America/New_York")) %>%
+                dplyr::select(dtSeq, names(histDaily)[which(grepl(plotSite, names(histDaily)))])
+
+            output$graphsX <- renderPlotly({
+                mm <- plot_ly(data=ds, x=~dateTime) %>%
+                    add_lines(y=~X_00065_00000,
+                              name=plotSite) %>%
+                    add_trace(x=c(min(ds$dateTime), max(ds$dateTime)),
+                              y=rep(siteCoor$floodHeight[which(siteCoor$site_no==plotSite)],2),
+                              name="NWS Floodstage", type="scatter", mode="lines",
+                              line=list(color="red")) %>%
+                    add_trace(x=hData$dtSeq, y=hData[,2], name="LT Daily Avg.",
+                              type="scatter", mode="markers",
+                              marker=list(symbol="triangle-up-open", color="green", size=7)) %>%
+                    layout(
+                        title=paste(plotSite, siteCoor$SiteName[which(siteCoor$SiteCode==plotSite)]),
+                        xaxis = list(
+                            rangeselector = list(
+                                buttons = list(
+                                    list(
+                                        count = 3,
+                                        label = "3 h",
+                                        step = "hour",
+                                        stepmode = "backward"),
+                                    list(
+                                        count = 12,
+                                        label = "12 h",
+                                        step = "hour",
+                                        stepmode = "backward"),
+                                    list(
+                                        step = "all")
+                                    )),
+                            rangeslider = list(type="date")),
+                        yaxis=list(title="Stage (ft)")
+                    )
+                toc()
+                mm
+            })
+        }
+    })
 
 
 
 
 
-    ## PREVIUOS ROW HOLDER
-    PREV_ROW <- REACTIVEVAL()
 
-    OBSERVEEVENT(INPUT$X1_ROWS_SELECTED, {
-        ROW_SELECTED = AS.DATA.FRAME(FDATA()[["R5"]])[INPUT$X1_ROWS_SELECTED,]
 
-        ## SET NEW VALUE TO REACTIVEVAL
-        PREV_ROW(ROW_SELECTED)
 
-        PROXY <- LEAFLETPROXY('MAPY')
 
-        ## RESET PREVIOUSLY SELECTED MARKER
-        IF(!IS.NULL(PREV_ROW()))
+
+    ## previuos row holder
+    prev_rowX <- reactiveVal()
+
+    observeEvent(input$x1X_rows_selected, {
+        row_selected = as.data.frame(fData()[["r5"]])[input$x1X_rows_selected,]
+
+        ## set new value to reactiveval
+        prev_rowX(row_selected)
+
+        proxy <- leafletProxy('mapyX')
+
+        ## reset previously selected marker
+        if(!is.null(prev_row()))
         {
-            PROXY %>%
-                ADDCIRCLEMARKERS(RADIUS=5, COLOR="RED",
-                    POPUP=PASTE(PREV_ROW()$SITENAMES,
-                               BR(), FILLOPACITY=0,
-                               PASTE0("CURRENT READING: ", PREV_ROW()[PREV_ROW()$CURRENTI+11],
-                                      BR(),
-                                      "FROM: ", PREV_ROW()$DATETIME, BR(),
-                                      "<A HREF='",
-                                      SITECOOR$USGSLINK[WHICH(SITECOOR$SITENAME==PREV_ROW()$SITENAME)],
-                                      "'>USGS</A>"),
-                               "(RIGHT CLICK TO OPEN IN NEW WINDOW)"),
-                    LAYERID = "SELECTED SITE",
-                    LNG=PREV_ROW()$LONGITUDE,
-                    LAT=PREV_ROW()$LATITUDE)
+            proxy %>%
+                addCircleMarkers(radius=5, color="red",
+                    popup=paste(prev_rowX()$sitenames,
+                               br(), fillOpacity=0,
+                               paste0("current reading: ", prev_rowX()[prev_rowX()$currenti+11],
+                                      br(),
+                                      "from: ", prev_rowX()$datetime, br(),
+                                      "<a href='",
+                                      sitecoor$usgslink[which(sitecoor$sitename==prev_rowX()$sitename)],
+                                      "'>usgs</a>"),
+                               "(right click to open in new window)"),
+                    layerid = "selected site",
+                    lng=prev_rowX()$longitude,
+                    lat=prev_rowX()$latitude)
         }
     })
 
 
     ######################################################################
     ######################################################################
-    ## TABLE
-    OUTPUT$X1X = DT::RENDERDATATABLE({
-        DATATABLE(DATA=AS.DATA.FRAME(FDATA()[["R5"]]),
-                  CLASS='COMPACT',
-                  EXTENSIONS = 'FIXEDHEADER',
-                  ROWNAMES=FALSE,
-                  ESCAPE=FALSE,
-                  SELECTION = "SINGLE",
-                  OPTIONS = LIST(PAGELENGTH = 60,
-                                 STATESAVE = TRUE,
-                                 DOM = 'T',
-                                 FIXEDHEADER='TRUE',
-                                 ESCAPE=TRUE,
-                                 AUTOWIDTH = TRUE,
-                                 SCROLLX=TRUE,
-                                 COLUMNDEFS = LIST(
-                                     LIST(VISIBLE=FALSE, TARGETS = C(0,3,10,35:37)),
-                                     LIST(WIDTH = '225PX', TARGETS = C(2)),
-                                     LIST(CLASSNAME='DT-CENTER', TARGETS=C(1,4:9))
+    ## table
+    output$x1X = DT::renderDataTable({
+        datatable(data=as.data.frame(fData()[["r5"]]),
+                  class='compact',
+                  extensions = 'FixedHeader',
+                  rownames=FALSE,
+                  escape=FALSE,
+                  selection = "single",
+                  options = list(pageLength = 60,
+                                 stateSave = TRUE,
+                                 dom = 't',
+                                 fixedHeader='TRUE',
+                                 escape=TRUE,
+                                 autoWidth = TRUE,
+                                 scrollX=TRUE,
+                                 columnDefs = list(
+                                     list(visible=FALSE, targets = c(0,3,10,35:37)),
+                                     list(width = '225px', targets = c(2)),
+                                     list(className='dt-center', targets=c(1,4:9))
                                  )
                                  )
                   ) %>%
@@ -418,6 +499,8 @@ shinyServer(function(input, output, session) {
     observeEvent(input$x1_cell_clicked, {
 
         info <- input$x1_cell_clicked
+
+        print(info)
 
         if (is.null(info$value)) {
             return()
