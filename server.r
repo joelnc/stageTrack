@@ -486,8 +486,7 @@ shinyServer(function(input, output, session) {
                                                   NA,
                                                   '#fee5d9','#fcbba1','#fc9272','#fb6a4a','#ef3b2c')
                                                 )
-            ) %>%
-            formatRound('30-Min Change', 2) %>%
+            ) %>%            formatRound('30-Min Change', 2) %>%
             formatRound('15-Min Change', 2) %>%
             formatRound('5-Min Change', 2) %>%
             formatRound('Minutes Since',1) %>%
