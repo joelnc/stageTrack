@@ -77,7 +77,7 @@ shinyServer(function(input, output, session) {
 
         ## Keep last 2 hours
         rQ <- filter(rQ,
-                     dateTime>=Sys.time()-(60*60*2))
+                     dateTime>=Sys.time()-(60*60*4))
 
         ## Pull out newest data dateTime for each site
         newestDt <- rQ %>%
