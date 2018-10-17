@@ -332,11 +332,11 @@ shinyServer(function(input, output, session) {
             ## make a palette, then make a reverse palette, then use as in below.
             myPal <- colorNumeric(
                 palette = "RdYlBu",
-                domain = c(0,1), reverse=FALSE)
+                domain = c(0,1.3), reverse=FALSE)
 
             myPalR <- colorNumeric(
                 palette = "RdYlBu",
-                domain = c(0,1), reverse=TRUE) ## reversed
+                domain = c(0,1.3), reverse=TRUE) ## reversed
 
 
             makeMap <- leaflet() %>%
@@ -348,7 +348,7 @@ shinyServer(function(input, output, session) {
                                              )
                                  ) %>%
                 addLegend(position = c("topright"), opacity = 0.7, myPal, ## use regular palette
-                          values=seq(0,1,.10), na.label = "NA", bins = 10,
+                          values=seq(0,1.3,.10), na.label = "NA", bins = 13,
                           labels = NULL, className = "info legend",
                           layerId = NULL, group = NULL,
                           labFormat = labelFormat(transform = function(x) sort(x, decreasing = TRUE)),
