@@ -134,7 +134,7 @@ shinyServer(function(input, output, session) {
         r5$change15YN <- rep("Na",53)
         r5$change30YN <- rep("Na",53)
         r5$floodDefecit <- rep(NA,53)
-
+## browser()
         ## Calculate the dependent columns
         for (i in 1:53) {
             r5$change5[i] <- r5[i,firstI[i]]-r5[i,firstI[i]+1]

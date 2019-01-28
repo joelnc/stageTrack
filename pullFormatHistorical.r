@@ -14,7 +14,8 @@ nn <- do.call("rbind",mm)
 
 
 
-nn$dateThing <- as.Date(paste0("2018-", nn$month_nu,"-", nn$day_nu))
+nn$dateThing <- as.Date(paste0(substr(Sys.time(), 1,4),"-",
+                               nn$month_nu,"-", nn$day_nu))
 nn <- nn[,c(2,11,12)]
 
 
@@ -49,7 +50,7 @@ histDaily <- readRDS("stageTrack/histDailyFlow.rds")
 histDaily.bySite <- histDaily[["siteCol"]]
 histDaily.byDate <- histDaily[["dateCol"]]
 
-st <- st <- as.POSIXct("2018-01-01 11:00", tz="America/Panama")
+st <- st <- as.POSIXct("2019-01-01 11:00", tz="America/Panama")
 dtSeq <- c(st + cumsum(c(0,rep(c(7200,3600,21*3600),365),100)))[1:1095]
 dateSeq <- data.frame(dates=as.Date(dtSeq))
 
