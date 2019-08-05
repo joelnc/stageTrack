@@ -5,7 +5,6 @@ library(plotly)
 
 shinyServer(function(input, output, session) {
 
-
     ######################################################################
     ######################################################################
     ## Data
@@ -181,11 +180,6 @@ shinyServer(function(input, output, session) {
         return(list(r5=r5))
     })
 
-
-
-
-
-
     ######################################################################
     ######################################################################
     ## Graphing functions, possible that two observeEvents not needed
@@ -206,7 +200,6 @@ shinyServer(function(input, output, session) {
             )
         }
     })
-
 
     observeEvent(input$x1_cell_clicked, {
 
@@ -264,7 +257,6 @@ shinyServer(function(input, output, session) {
             })
         }
     })
-
 
     ### Original stuff
 
@@ -406,7 +398,6 @@ shinyServer(function(input, output, session) {
         }
     })
 
-
     ######################################################################
     ######################################################################
     ## Table
@@ -516,7 +507,6 @@ shinyServer(function(input, output, session) {
             )
         }
     })
-
 
     observeEvent(input$x1_cell_clicked, {
 
