@@ -50,8 +50,8 @@ histDaily <- readRDS("stageTrack/histDailyFlow.rds")
 histDaily.bySite <- histDaily[["siteCol"]]
 histDaily.byDate <- histDaily[["dateCol"]]
 
-st <- st <- as.POSIXct("2019-01-01 11:00", tz="America/Panama")
-dtSeq <- c(st + cumsum(c(0,rep(c(7200,3600,21*3600),365),100)))[1:1095]
+st <- st <- as.POSIXct("2020-01-01 11:00", tz="America/Panama")
+dtSeq <- c(st + cumsum(c(0,rep(c(7200,3600,21*3600),366),100)))[1:1095]
 dateSeq <- data.frame(dates=as.Date(dtSeq))
 
 ## merge the flow stats with the repetitive dates
