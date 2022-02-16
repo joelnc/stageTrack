@@ -5,9 +5,16 @@ library(DT)
 library(leaflet)
 library(tictoc)
 
-siteCoor <<- readRDS("siteCoordsFloodStage.rds")
+siteCoor <- readRDS("siteCoordsFloodStage.rds")
 histDaily <<- readRDS("histDailyFlow_FormattedPoints.rds")
 histFlowTab <<- readRDS("histFlowTable.rds")
+
+siteCoor <<- siteCoor[-c(37,38),]
+
+## rm(list=ls())
+## siteCoor <<- readRDS("stageTrack/siteCoordsFloodStage.rds")
+## histDaily <<- readRDS("stageTrack/histDailyFlow_FormattedPoints.rds")
+## histFlowTab <<- readRDS("stageTrack/histFlowTable.rds")
 
 navbarPage(
     title = 'Stage Tracker',

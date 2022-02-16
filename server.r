@@ -89,7 +89,7 @@ shinyServer(function(input, output, session) {
         ## Reshape
         r2 <- reshape(rQ, idvar="site_no", v.names="X_00065_00000",
                       timevar="dateTime", direction="wide")
-
+        
         ## Rename
         names(r2) <- substring(names(r2), 20, 30)
         names(r2)[1] <- "site_no"
@@ -112,8 +112,8 @@ shinyServer(function(input, output, session) {
 
         ## This produces an array with column indexes correpsondig to first numeric
         ## data per site
-        firstI <- rep(NA,53)
-        for (i in 1:53) {
+        firstI <- rep(NA,51)
+        for (i in 1:51) {
             firstI[i] <- which(names(r5)==format(r5$dateTime[i], format="%m-%d %H:%M"))
         }
 
@@ -129,16 +129,16 @@ shinyServer(function(input, output, session) {
         r5 <- merge(r5, hToday, by="site_no", all=TRUE)
 
         ## Initialize the current reading dependent columns
-        r5$change5YN <- rep("Na",53)
-        r5$change15YN <- rep("Na",53)
-        r5$change30YN <- rep("Na",53)
-        r5$floodDefecit <- rep(NA,53)
-        r5$frac <- as.numeric(rep(NA,53))
+        r5$change5YN <- rep("Na",51)
+        r5$change15YN <- rep("Na",51)
+        r5$change30YN <- rep("Na",51)
+        r5$floodDefecit <- rep(NA,51)
+        r5$frac <- as.numeric(rep(NA,51))
 
         ## browser()
 
         ## Calculate the dependent columns
-        for (i in 1:53) {
+        for (i in 1:51) {
             r5$change5[i] <- r5[i,firstI[i]]-r5[i,firstI[i]+1]
             r5$change15[i] <- r5[i,firstI[i]]-r5[i,firstI[i]+3]
             r5$change30[i] <- r5[i,firstI[i]]-r5[i,firstI[i]+6]
@@ -173,12 +173,6 @@ shinyServer(function(input, output, session) {
                             "5-Min Change"=change5, "15-Min Change"=change15, "30-Min Change"=change30,
                             everything(), floodHeight, latitude=dec_lat_va,
                             longitude=dec_lon_va, currentI,change5YN, change15YN, change30YN)
-
-        ## r5 <- dplyr::select(r5, Site, Graph, SiteName, SiteCode=site_no,
-        ##              "Flood Fraction"=frac, "5-Min Change"=change5, "15-Min Change"=change15,
-        ##              "30-Min Change"=change30, "Minutes Since"=def, "Below Flood Stage"=floodDefecit,
-        ##              everything(), floodHeight, latitude=dec_lat_va,
-        ##              longitude=dec_lon_va, currentI,change5YN, change15YN, change30YN)
 
         return(list(r5=r5))
     })
@@ -278,8 +272,8 @@ shinyServer(function(input, output, session) {
         if (input$mapDef=="Stage") {
 
             ## Extract vector of most recent stage at each site
-            stg <- rep(NA, 53)
-            for (i in 1:53) {
+            stg <- rep(NA, 51)
+            for (i in 1:51) {
                 stg[i] <- ds[i,ds$currentI[i]+11]
             }
 
@@ -318,8 +312,8 @@ shinyServer(function(input, output, session) {
         } else {
             ## Extract vector of most recent stage at each site
 
-            frac <- rep(NA, 53)
-            for (i in 1:53) {
+            frac <- rep(NA, 51)
+            for (i in 1:51) {
                 frac[i] <- ds[i, "Flood Fraction"]
             }
 
@@ -354,7 +348,6 @@ shinyServer(function(input, output, session) {
                           lat1=min(ds$latitude),
                           lat2=max(ds$latitude)
                           )
-            ## browser()
 
             if (max(ds[,"Flood Fraction"], na.rm=TRUE)>=1) {
                 dsExtra <- filter(ds, ds[,"Flood Fraction"]>=1)
