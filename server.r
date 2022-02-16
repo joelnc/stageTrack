@@ -14,7 +14,7 @@ shinyServer(function(input, output, session) {
 
         ## Pars
         QParameterCd <- "00065" ## stage, feet
-        startTime <- as.Date(format(Sys.time(), tz="America/Panama"))-input$dNum
+        startTime <- as.Date(format(Sys.time(), tz="America/Panama"))-as.numeric(input$dNum)
 
         ## Pull most recent data
         recentQ <- readNWISuv(siteNumbers=siteCoor$site_no,

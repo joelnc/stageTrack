@@ -26,13 +26,15 @@ navbarPage(
                         wellPanel(
                             h4("Initialize", font="bold"),
                             ## sliderInput("dSlide","Days Prior", min=0, max=21, value=1),
-                            numericInput("dNum","Days Prior", min=0, max=21, value=0),
+                            ## numericInput("dNum","Days Prior", min=0, max=21, value=0),
+                            selectInput("dNum","Days Prior (select one, then wait)",
+                                        choices=c(0,1,2,3,4,5,6,7),
+                                        selected=0),           
                             HTML('<button data-toggle="collapse" data-target="#demo2" class="button" style="horizontal-align:middle"><span><b>About</b></span></button>'),
                             tags$div(id = 'demo2',  class="collapse",
                                      h6("Graphs embedded in the table below will initially include only data from today.  Increasing Days Prior will increase the period of record shown in the graphs.  Setting Days Prior to 3 may take 60-90 seconds to fetch all of those data."),
                                      br(),
-                                     h6("NOTE:  To increment by more than 1 day, do not use the arrows (if they appear).  Instead, click in the box, BACKSPACE/DEL the current number, enter the number you want to use, then click outside of the box (...and wait).  The up/down arrows will attempt to fetch data at each day, making it slow.")
-                                     ),
+                                     h6("NOTE:  Each change will initiate a new pull of all records.  If useing, decide how many days of prior you want, then select that value and wait.")),
                             hr(),
                             h4("Get Most Recent Data"),
                             actionButton("updData", "Refresh"),
@@ -57,5 +59,4 @@ navbarPage(
              hr(),
              DT::dataTableOutput('x1'))
 )
-
 
