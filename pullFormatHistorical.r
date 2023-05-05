@@ -56,7 +56,8 @@ histDaily.bySite <- histDaily[["siteCol"]]
 histDaily.byDate <- histDaily[["dateCol"]]
 
 ## st <- st <- as.POSIXct("2020-01-01 11:00", tz="America/Panama")
-st <- as.POSIXct("2022-01-01 11:00", tz="America/Panama")
+## st <- as.POSIXct("2022-01-01 11:00", tz="America/Panama")
+st <- as.POSIXct("2023-01-01 11:00", tz="America/Panama")
 dtSeq <- c(st + cumsum(c(0,rep(c(7200,3600,21*3600),366),100)))[1:1095]
 dateSeq <- data.frame(dates=as.Date(dtSeq))
 
