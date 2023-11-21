@@ -31,7 +31,7 @@ shinyServer(function(input, output, session) {
 
     ## If button clicked, add on most recent data.  Otherwise pass through
     useData <- reactive({
-
+        
         if (input$updData==0) {
             rQ <- as.data.frame(baseData()[["rQ"]])
             list1 <- split(rQ, rQ$site_no)
@@ -69,6 +69,8 @@ shinyServer(function(input, output, session) {
 
     ## Take the data set and calculate metrics of interest
     fData <- reactive({
+
+        browser()
 
         ## Pull dfs out of list
         rQ <- as.data.frame(useData()[["rQ"]])
